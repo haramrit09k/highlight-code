@@ -53,7 +53,8 @@ jobs:
           mkdir -p "$ASSETS/$DIR"
           for f in build/smoke/snapshots/*.png; do
             # Keep images small for the PR description.
-            sips -Z 1400 "$f" --out "$ASSETS/$DIR/$(basename "$f")" >/dev/null
+            sips -Z 1200 -s format jpeg -s formatOptions 82 "$f" \
+              --out "$ASSETS/$DIR/$(basename "$f" .png).jpg" >/dev/null
           done
           git -C "$ASSETS" add "$DIR"
           git -C "$ASSETS" commit -m "Screenshots for $DIR from run ${{ github.run_id }}"

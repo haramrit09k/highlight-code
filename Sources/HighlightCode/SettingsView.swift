@@ -12,10 +12,10 @@ struct SettingsView: View {
     @dataclass
     class Card:
         term: str
-        score: int = 0  # spaced repetition
+        score: int = 0  # 0 = new
 
-        def review(self, correct: bool) -> int:
-            self.score += 1 if correct else -1
+        def review(self, ok: bool):
+            self.score += 1 if ok else -1
             return max(self.score, 0)
     """
 
