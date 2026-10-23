@@ -12,9 +12,10 @@ final class SelectionToolbar: NSObject {
     static let notesBundleID = NotesPaster.notesBundleID
     /// The button appears once the selection stops changing for this long (e.g. drag ended).
     private static let settleDelay: TimeInterval = 0.25
-    private static let panelSize = CGSize(width: 150, height: 34)
 
-    private let write: (String, NSPasteboard) throws -> Void
+    private let write: (String, LanguageChoice, NSPasteboard) throws -> Void
+    private let languageMenu: () -> LanguageMenu
+    private let edge: () -> ToolbarPlacement.Edge
     private var observer: AXObserver?
     private var notesElement: AXUIElement?
     private var observedPID: pid_t?
@@ -23,11 +24,25 @@ final class SelectionToolbar: NSObject {
     private var eventMonitor: Any?
     /// The selection the button is currently shown for.
     private var shownRange: (location: Int, length: Int)?
+    private lazy var toolbarView = ToolbarView(
+        target: self,
+        highlight: #selector(highlightClicked),
+        chooseLanguage: #selector(chooseLanguageClicked)
+    )
     private lazy var panel = makePanel()
 
-    /// - Parameter write: formats the given text and writes it to the pasteboard.
-    init(write: @escaping (String, NSPasteboard) throws -> Void) {
+    /// - Parameters:
+    ///   - write: formats the given text in the chosen language and writes it to the pasteboard.
+    ///   - languageMenu: makes the menu shown by the button's ▾.
+    ///   - edge: which side of the selection the button should prefer.
+    init(
+        write: @escaping (String, LanguageChoice, NSPasteboard) throws -> Void,
+        languageMenu: @escaping () -> LanguageMenu,
+        edge: @escaping () -> ToolbarPlacement.Edge
+    ) {
         self.write = write
+        self.languageMenu = languageMenu
+        self.edge = edge
     }
 
     static var isTrusted: Bool { AXIsProcessTrusted() }
@@ -68,6 +83,8 @@ final class SelectionToolbar: NSObject {
     // MARK: Following Notes
 
     private func frontmostApplicationChanged(_ application: NSRunningApplication?) {
+        // The language menu briefly activates this app; keep following Notes meanwhile.
+        if application == NSRunningApplication.current { return }
         if let application, application.bundleIdentifier == Self.notesBundleID {
             attach(to: application.processIdentifier)
         } else {
@@ -140,10 +157,16 @@ final class SelectionToolbar: NSObject {
             forSelection: bounds,
             primaryScreenHeight: primary.frame.height,
             visibleFrame: screen.visibleFrame,
-            size: Self.panelSize
+            size: toolbarView.frame.size,
+            edge: edge()
         )
         panel.setFrame(frame, display: true)
+        panel.alphaValue = 0
         panel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.12
+            panel.animator().alphaValue = 1
+        }
         shownRange = (range.location, range.length)
     }
 
@@ -156,14 +179,32 @@ final class SelectionToolbar: NSObject {
 
     @objc private func highlightClicked() {
         hidePanel()
+        highlightSelection(as: .automatic)
+    }
+
+    @objc private func chooseLanguageClicked() {
+        let button = toolbarView.languageButton
+        // Open the menu just under the ▾, aligned with the toolbar's left edge.
+        let anchor = toolbarView.convert(NSPoint(x: 0, y: -6), to: button)
+        let choice = languageMenu().pick(at: anchor, in: button)
+        hidePanel()
+        guard let choice else { return }
+        // The menu activates this app so it can take typing; give Notes a moment to become
+        // active again before pasting into it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.highlightSelection(as: choice)
+        }
+    }
+
+    private func highlightSelection(as choice: LanguageChoice) {
         guard let pid = observedPID, let element = focusedTextElement(),
               let text = selectedText(of: element), !text.isEmpty else {
             NSSound.beep()
             return
         }
         do {
-            DebugLog.write("floating button: highlighting \(text.count) characters")
-            try NotesPaster.paste(into: pid, replacing: text) { pasteboard in try write(text, pasteboard) }
+            DebugLog.write("floating button: highlighting \(text.count) characters as \(choice.languageID ?? "auto")")
+            try NotesPaster.paste(into: pid, replacing: text) { pasteboard in try write(text, choice, pasteboard) }
         } catch {
             NSSound.beep()
         }
@@ -228,7 +269,7 @@ final class SelectionToolbar: NSObject {
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: Self.panelSize),
+            contentRect: NSRect(origin: .zero, size: toolbarView.frame.size),
             styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
             defer: true
@@ -241,26 +282,7 @@ final class SelectionToolbar: NSObject {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
-
-        let background = NSVisualEffectView(frame: NSRect(origin: .zero, size: Self.panelSize))
-        background.material = .popover
-        background.state = .active
-        background.wantsLayer = true
-        background.layer?.cornerRadius = 9
-        background.layer?.masksToBounds = true
-
-        let button = NSButton(title: "Highlight Code", target: self, action: #selector(highlightClicked))
-        button.image = NSImage(systemSymbolName: "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
-        button.imagePosition = .imageLeading
-        button.isBordered = false
-        button.font = .systemFont(ofSize: 13, weight: .medium)
-        button.contentTintColor = .controlAccentColor
-        button.toolTip = "Replace the selection with syntax-highlighted code"
-        button.frame = background.bounds
-        button.autoresizingMask = [.width, .height]
-        background.addSubview(button)
-
-        panel.contentView = background
+        panel.contentView = toolbarView
         return panel
     }
 }

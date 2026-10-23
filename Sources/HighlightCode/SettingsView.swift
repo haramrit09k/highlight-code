@@ -30,7 +30,8 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     step(1, "Select code in a note. Markdown fences such as ```python set the language.")
                     step(2, "Click the floating Highlight Code button (see below), or right-click the selection and choose Services › Highlight Code.")
-                    step(3, "Optional: give it a shortcut in System Settings › Keyboard › Keyboard Shortcuts › Services › Text.")
+                    step(3, "To pick the language yourself, click ▾ on the floating button or choose Services › Highlight Code As…")
+                    step(4, "Optional: give it a shortcut in System Settings › Keyboard › Keyboard Shortcuts › Services › Text.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(6)
@@ -59,6 +60,13 @@ struct SettingsView: View {
                     if preferences.floatingButton {
                         Toggle("Open at login, so the button is always available", isOn: $preferences.openAtLogin)
                             .padding(.leading, 20)
+                        Picker("Position", selection: $preferences.toolbarEdge) {
+                            Text("Below the selection").tag(ToolbarPlacement.Edge.below)
+                            Text("Above the selection").tag(ToolbarPlacement.Edge.above)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(maxWidth: 380)
+                        .padding(.leading, 20)
                     }
                     Text("Notes only keeps the colours of pasted code when it is pasted with Edit › Paste and Retain Style. Accessibility access lets Highlight Code do that for you, and see your selection for the floating button, the same way screen readers do. Notes itself is never modified.")
                         .font(.footnote)

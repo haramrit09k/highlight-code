@@ -60,6 +60,31 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
+				<string>Highlight Code As…</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>highlightCodeAs</string>
+			<key>NSPortName</key>
+			<string>Highlight Code</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+			</array>
+			<key>NSReturnTypes</key>
+			<array>
+				<string>public.rtf</string>
+				<string>public.utf8-plain-text</string>
+			</array>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<!-- Showing the language menu takes user time; allow up to two minutes. -->
+			<key>NSTimeout</key>
+			<string>120000</string>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
 				<string>Copy Highlighted Code</string>
 			</dict>
 			<key>NSMessage</key>

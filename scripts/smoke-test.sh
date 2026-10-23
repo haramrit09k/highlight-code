@@ -37,7 +37,7 @@ with_timeout() {
 if $SNAPSHOTS; then
 echo "==> Snapshots"
 with_timeout 180 "$BIN" --snapshot "$OUT/snapshots" || { echo "FAIL: snapshots failed or timed out"; exit 1; }
-for name in settings-light settings-dark before-after; do
+for name in settings-light settings-dark before-after toolbar; do
   test -s "$OUT/snapshots/$name.png" || { echo "FAIL: missing $name.png"; exit 1; }
 done
 echo "PASS"
