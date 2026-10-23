@@ -81,7 +81,8 @@ only bold and italic; Paste and Match Style, <kbd>⌥⇧⌘V</kbd>, keeps nothin
 Highlight Code does that for you, from both the floating button and the Services menu.
 
 If the app still asks for access although it's switched on, the entry belongs to a
-previous build (unsigned builds get a new identity each time). Remove **Highlight Code**
+different build (builds made before 0.2, or built yourself, each have their own
+identity). Remove **Highlight Code**
 from the Accessibility list with **–** and grant access again, or run
 `tccutil reset Accessibility io.github.haramrit09k.highlight-code` and reopen the app.
 
@@ -96,9 +97,13 @@ and paste the highlighted version through Notes' own **Edit › Paste and Retain
 restored afterwards. Turn on **Open at login** to keep the button available after a
 restart.
 
-> Because the app is not notarized, macOS ties the Accessibility permission to that exact
-> build: after updating, you may need to switch it off and on again in
-> **System Settings › Privacy & Security › Accessibility**.
+### Updates
+
+Highlight Code updates itself with [Sparkle](https://sparkle-project.org): it checks
+GitHub once a day and asks before installing. You can turn that off, or check now, at the
+bottom of the settings window. Updates are signed, and the app only installs ones made
+with the project's key. Your Accessibility permission carries over, because every release
+is signed with the same (self-signed) identity.
 
 ### A keyboard shortcut
 
@@ -173,8 +178,19 @@ Other scripts:
 - The icon source is `Resources/AppIcon.svg`. After editing it, re-export
   `Resources/AppIcon.png` at 1024×1024.
 
-**Releasing:** push a tag such as `v1.0.0`. The Release workflow builds, tests and
-publishes the zip to GitHub Releases.
+**Releasing:** push a tag such as `v1.0.0`. The Release workflow builds, tests, signs
+and publishes the zip, plus the `appcast.xml` update feed, to GitHub Releases.
+
+Before the first release, run `scripts/setup-signing.sh` once on your Mac. It creates the
+two keys releases are signed with and stores them as GitHub Actions secrets (it needs
+the GitHub CLI, or use `--print` and paste them in by hand):
+
+- a self-signed code-signing certificate, so every build has the same identity and keeps
+  its permissions (free; it is not an Apple Developer ID, so Gatekeeper still asks once);
+- an update-signing key, so installed copies only accept updates made by you.
+
+Keep the backup it makes somewhere safe. With new keys, existing installs would lose
+their Accessibility permission and could no longer verify updates.
 
 The engine (`HighlightCore`, minus the macOS-only parts) also builds and tests on Linux,
 which CI checks too.

@@ -31,6 +31,14 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>MIT License. Includes highlight.js (BSD-3-Clause).</string>
+	<!-- Sparkle: automatic updates from the latest GitHub release's appcast.xml. The
+	     public key (SUPublicEDKey) is added by scripts/build-app.sh for release builds. -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/haramrit09k/highlight-code/releases/latest/download/appcast.xml</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>NSServices</key>
 	<array>
 		<dict>

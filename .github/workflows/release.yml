@@ -1,6 +1,7 @@
 name: Release
 
-# Push a tag like v1.0.0 to build the app and publish it as a GitHub Release.
+# Push a tag like v1.0.0 to build the app and publish it as a GitHub Release, together
+# with the appcast.xml that installed copies check for updates.
 on:
   push:
     tags: ["v*"]
@@ -17,8 +18,22 @@ jobs:
   release:
     runs-on: macos-15
     timeout-minutes: 45
+    env:
+      MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+      MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
+      SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Check signing secrets
+        run: |
+          if [[ -z "$MACOS_SIGNING_P12" || -z "$MACOS_SIGNING_P12_PASSWORD" || -z "$SPARKLE_ED_PRIVATE_KEY" ]]; then
+            echo "::error::Signing secrets are missing. Run scripts/setup-signing.sh once (see README, Releasing)."
+            exit 1
+          fi
+
+      - name: Import signing certificate
+        run: scripts/ci-run.sh scripts/import-signing-cert.sh
 
       - name: Unit tests
         run: scripts/ci-run.sh swift test
@@ -29,10 +44,16 @@ jobs:
       - name: Smoke test
         run: scripts/ci-run.sh scripts/smoke-test.sh
 
+      - name: Update feed
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          scripts/make-appcast.sh "$VERSION" "build/HighlightCode-$VERSION.zip" > build/appcast.xml
+          cat build/appcast.xml
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/HighlightCode-*.zip \
+          gh release create "$GITHUB_REF_NAME" build/HighlightCode-*.zip build/appcast.xml \
             --title "Highlight Code ${GITHUB_REF_NAME}" \
             --generate-notes

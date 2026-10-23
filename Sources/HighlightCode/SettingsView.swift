@@ -22,6 +22,7 @@ struct SettingsView: View {
     @ObservedObject var preferences: Preferences
     let preview: (RenderOptions) -> NSAttributedString?
     let requestAccessibility: () -> Void
+    @ObservedObject var updater: Updater
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -104,9 +105,24 @@ struct SettingsView: View {
                     }
                 }
                 Spacer()
-                Text("Runs only when you use it; nothing leaves your Mac.")
+                Text("Your code never leaves your Mac.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 12) {
+                Text("Version \(Self.version)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if updater.isAvailable {
+                    Toggle("Check for updates automatically", isOn: $updater.automaticallyChecks)
+                        .font(.callout)
+                    Button("Check for Updates…", action: updater.checkForUpdates)
+                } else {
+                    Text("Updates are off in this build; get new versions from GitHub Releases.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(24)
@@ -174,13 +190,18 @@ struct SettingsView: View {
         return Text(result)
     }
 
+    static var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+
     static func makeWindow(
         preferences: Preferences,
         preview: @escaping (RenderOptions) -> NSAttributedString?,
-        requestAccessibility: @escaping () -> Void = {}
+        requestAccessibility: @escaping () -> Void = {},
+        updater: Updater = Updater(start: false)
     ) -> NSWindow {
         let controller = NSHostingController(rootView: SettingsView(
-            preferences: preferences, preview: preview, requestAccessibility: requestAccessibility
+            preferences: preferences, preview: preview, requestAccessibility: requestAccessibility, updater: updater
         ))
         let window = NSWindow(contentViewController: controller)
         // SwiftUI sizes the window lazily on first display; size it now so it centres
