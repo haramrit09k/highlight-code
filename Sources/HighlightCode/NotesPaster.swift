@@ -1,6 +1,7 @@
 #if canImport(AppKit)
 import AppKit
 import ApplicationServices
+import HighlightCore
 
 /// Pastes highlighted code into Apple Notes so that it keeps its colours.
 ///
@@ -10,10 +11,6 @@ import ApplicationServices
 /// Accessibility API, and then restores the user's clipboard. Requires Accessibility access.
 enum NotesPaster {
     static let notesBundleID = "com.apple.Notes"
-
-    /// Modifier masks used by kAXMenuItemCmdModifiersAttribute (⌘ is implied).
-    private static let shiftOption = 1 << 0 | 1 << 1
-    private static let commandOnly = 0
 
     /// Replaces the selection in Notes with what `write` puts on the pasteboard.
     /// - Parameters:
@@ -84,50 +81,47 @@ enum NotesPaster {
         return AXValueGetValue(value, .cfRange, &range) ? range : nil
     }
 
-    /// Presses Edit › Paste and Retain Style exactly once: found by title, or by its ⌥⇧⌘V
-    /// shortcut in other languages, otherwise plain Paste. Only if no menu item is found
-    /// is the shortcut typed instead.
+    /// Presses Edit › Paste and Retain Style exactly once (see `PasteMenu` for how it is
+    /// found), or plain Paste if Notes has no such item. Only if the Edit menu can't be read
+    /// at all is ⌘V typed instead.
     ///
     /// Pressing a menu item through Accessibility often reports an error even though the
     /// item ran (the call times out waiting for the action), so the result is never used to
     /// try another item: that pasted the code twice.
     private static func pasteRetainingStyle(in application: AXUIElement) {
-        let items = pasteMenuItems(in: application)
-        let item = items.first { $0.title.localizedCaseInsensitiveContains("retain style") }
-            ?? items.first { $0.modifiers == shiftOption && !$0.title.localizedCaseInsensitiveContains("match") }
-            ?? items.first { $0.modifiers == commandOnly }
-        DebugLog.write("paste: menu items with V: \(items.map { "\($0.title) [\($0.modifiers)]" }); pressing \(item?.title ?? "none")")
-
-        if let item {
-            let result = AXUIElementPerformAction(item.element, kAXPressAction as CFString)
-            DebugLog.write("paste: pressed \(item.title), result \(result.rawValue)")
+        let items = editMenuItems(in: application)
+        let described = items.map { "\($0.item.title) [\($0.item.key ?? "-") \($0.item.modifiers)]" }
+        guard let index = PasteMenu.indexToPress(in: items.map(\.item)) else {
+            DebugLog.write("paste: Edit menu not found (\(described)); typing ⌘V")
+            let source = CGEventSource(stateID: .combinedSessionState)
+            let keyV: CGKeyCode = 9
+            for keyDown in [true, false] {
+                let event = CGEvent(keyboardEventSource: source, virtualKey: keyV, keyDown: keyDown)
+                event?.flags = .maskCommand
+                event?.post(tap: .cghidEventTap)
+            }
             return
         }
-        let source = CGEventSource(stateID: .combinedSessionState)
-        let keyV: CGKeyCode = 9
-        for keyDown in [true, false] {
-            let event = CGEvent(keyboardEventSource: source, virtualKey: keyV, keyDown: keyDown)
-            event?.flags = [.maskCommand, .maskAlternate, .maskShift]
-            event?.post(tap: .cghidEventTap)
-        }
-        DebugLog.write("paste: no menu item found, typed ⌥⇧⌘V")
+        let chosen = items[index]
+        let result = AXUIElementPerformAction(chosen.element, kAXPressAction as CFString)
+        DebugLog.write("paste: Edit menu \(described); pressed \(chosen.item.title), result \(result.rawValue)")
     }
 
-    private static func pasteMenuItems(in application: AXUIElement) -> [(element: AXUIElement, title: String, modifiers: Int)] {
+    /// The items of the menu holding ⌘V Paste, in order.
+    private static func editMenuItems(in application: AXUIElement) -> [(element: AXUIElement, item: PasteMenu.Item)] {
         guard let menuBar: AXUIElement = attribute(kAXMenuBarAttribute, of: application) else { return [] }
-        var result: [(AXUIElement, String, Int)] = []
         for menuBarItem in children(of: menuBar) {
             for menu in children(of: menuBarItem) {
-                for item in children(of: menu) {
-                    let key: String? = attribute(kAXMenuItemCmdCharAttribute, of: item)
-                    guard key?.uppercased() == "V" else { continue }
-                    let title: String = attribute(kAXTitleAttribute, of: item) ?? ""
-                    let modifiers: NSNumber? = attribute(kAXMenuItemCmdModifiersAttribute, of: item)
-                    result.append((item, title, modifiers?.intValue ?? commandOnly))
+                let items = children(of: menu).map { element -> (element: AXUIElement, item: PasteMenu.Item) in
+                    let key: String? = attribute(kAXMenuItemCmdCharAttribute, of: element)
+                    let modifiers: NSNumber? = attribute(kAXMenuItemCmdModifiersAttribute, of: element)
+                    let title: String = attribute(kAXTitleAttribute, of: element) ?? ""
+                    return (element, PasteMenu.Item(title: title, key: key?.isEmpty == false ? key : nil, modifiers: modifiers?.intValue ?? 0))
                 }
+                if PasteMenu.isEditMenu(items.map(\.item)) { return items }
             }
         }
-        return result
+        return []
     }
 
     private static func children(of element: AXUIElement) -> [AXUIElement] {

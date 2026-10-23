@@ -178,7 +178,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Notes only keeps the colours of pasted code when it is pasted with Edit › Paste and \
         Retain Style. With Accessibility access, Highlight Code does that for you.
 
-        Without it, choose Services › Copy Highlighted Code, then press ⌥⇧⌘V in your note.
+        Without it, choose Services › Copy Highlighted Code, then Edit › Paste and Retain \
+        Style in your note.
         """
         alert.addButton(withTitle: "Grant Access…")
         alert.addButton(withTitle: "Not Now")
