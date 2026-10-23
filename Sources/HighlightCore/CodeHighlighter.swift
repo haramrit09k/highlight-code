@@ -80,11 +80,25 @@ public final class CodeHighlighter {
       if (/\\bSystem\\.out\\.print|\\bpublic\\s+static\\s+void\\s+main\\s*\\(\\s*String|^\\s*import\\s+java\\./m.test(code)) {
         return "java";
       }
+      // One-line queries score higher as CSS or shell than as SQL.
+      if (/^(select|insert\\s+into|update|delete\\s+from|create\\s+(table|index|view)|alter\\s+table|drop\\s+table|with\\s+\\w+\\s+as)\\b/i.test(trimmed)) {
+        return "sql";
+      }
       return null;
+    }
+    // Maps an alias such as "py" to its canonical id ("python").
+    function __canonical(language) {
+      var definition = hljs.getLanguage(language);
+      if (!definition) return null;
+      var names = hljs.listLanguages();
+      for (var i = 0; i < names.length; i++) {
+        if (hljs.getLanguage(names[i]) === definition) return names[i];
+      }
+      return language;
     }
     function __highlight(code, language) {
       try {
-        var lang = language && hljs.getLanguage(language) ? language : __guessLanguage(code);
+        var lang = (language && __canonical(language)) || __guessLanguage(code);
         var result = lang
           ? hljs.highlight(code, { language: lang, ignoreIllegals: true })
           : hljs.highlightAuto(code, __autoLanguages);
