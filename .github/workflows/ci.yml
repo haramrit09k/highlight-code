@@ -11,21 +11,21 @@ jobs:
     name: Build & test (macOS)
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Toolchain
         run: swift --version
 
       - name: Unit tests
-        run: swift test
+        run: scripts/ci-run.sh swift test
 
       - name: Build app
-        run: scripts/build-app.sh "0.0.0-ci.${{ github.run_number }}"
+        run: scripts/ci-run.sh scripts/build-app.sh "0.0.0-ci.${{ github.run_number }}"
 
       - name: Smoke test (CLI, snapshots, Services menu)
-        run: scripts/smoke-test.sh --install
+        run: scripts/ci-run.sh scripts/smoke-test.sh --install
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: HighlightCode-ci-${{ github.run_number }}
@@ -39,6 +39,6 @@ jobs:
     runs-on: ubuntu-latest
     container: swift:6.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Unit tests
-        run: swift test
+        run: scripts/ci-run.sh swift test

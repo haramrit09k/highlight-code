@@ -12,16 +12,16 @@ jobs:
   release:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Unit tests
-        run: swift test
+        run: scripts/ci-run.sh swift test
 
       - name: Build app
-        run: scripts/build-app.sh "${GITHUB_REF_NAME#v}"
+        run: scripts/ci-run.sh scripts/build-app.sh "${GITHUB_REF_NAME#v}"
 
       - name: Smoke test
-        run: scripts/smoke-test.sh
+        run: scripts/ci-run.sh scripts/smoke-test.sh
 
       - name: Publish release
         env:
