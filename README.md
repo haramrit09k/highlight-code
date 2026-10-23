@@ -117,6 +117,11 @@ fn main() { println!("hi"); }
 
 Aliases such as `js`, `ts`, `py`, `sh`, `yml` and `objc` work.
 
+### Something not working in Notes?
+
+Highlight Code writes a short log (what it pressed and pasted, never your code) to
+`~/Library/Logs/HighlightCode.log`. Please attach it when reporting a problem.
+
 ### Not showing up in the Services menu?
 
 - Make sure the app is in **Applications** and has been opened once.

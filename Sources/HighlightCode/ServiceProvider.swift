@@ -60,6 +60,7 @@ final class ServiceProvider: NSObject {
             return
         }
         guard SelectionToolbar.isTrusted else {
+            DebugLog.write("service: Notes without Accessibility access, normal reply")
             // Fall through to the normal reply, which Notes shows without colours.
             onNotesNeedsAccessibility()
             format(from: pasteboard, to: pasteboard, choice: choice, error: error)
@@ -70,15 +71,17 @@ final class ServiceProvider: NSObject {
             error.pointee = "Select some code first." as NSString
             return
         }
-        // Notes drops the colours of text returned by a service, so decline the reply
-        // (Notes then leaves the selection as it is) and paste it with Paste and Retain
-        // Style once Notes has control again.
+        // Notes drops the colours of text returned by a service, so decline the reply and
+        // paste with Paste and Retain Style once Notes has control again. Clearing the
+        // service pasteboard leaves Notes nothing to put in place of the selection.
+        DebugLog.write("service: Notes, highlighting \(text.count) characters via Paste and Retain Style")
+        pasteboard.clearContents()
         error.pointee = "Pasting into Notes with Paste and Retain Style instead." as NSString
         let options = preferences.renderOptions
         let formatter = formatter
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             do {
-                try NotesPaster.paste(into: notes.processIdentifier) { target in
+                try NotesPaster.paste(into: notes.processIdentifier, replacing: text) { target in
                     try formatter().write(text, language: choice.languageID, options: options, to: target)
                 }
             } catch {

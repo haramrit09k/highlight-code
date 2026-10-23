@@ -181,7 +181,8 @@ final class SelectionToolbar: NSObject {
             return
         }
         do {
-            try NotesPaster.paste(into: pid) { pasteboard in try write(text, choice, pasteboard) }
+            DebugLog.write("floating button: highlighting \(text.count) characters as \(choice.languageID ?? "auto")")
+            try NotesPaster.paste(into: pid, replacing: text) { pasteboard in try write(text, choice, pasteboard) }
         } catch {
             NSSound.beep()
         }
