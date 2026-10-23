@@ -5,11 +5,18 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      screenshots_dir:
+        description: "Commit the app snapshots to the pr-assets branch under this folder (e.g. pr-1). Leave empty to skip."
+        required: false
+        default: ""
 
 jobs:
   macos:
     name: Build & test (macOS)
     runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
@@ -24,6 +31,30 @@ jobs:
 
       - name: Smoke test (CLI, snapshots, Services menu)
         run: scripts/ci-run.sh scripts/smoke-test.sh --install
+
+      - name: Publish snapshots to pr-assets
+        if: github.event_name == 'workflow_dispatch' && inputs.screenshots_dir != ''
+        env:
+          DIR: ${{ inputs.screenshots_dir }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          ASSETS="$RUNNER_TEMP/pr-assets"
+          if git fetch origin pr-assets; then
+            git worktree add "$ASSETS" FETCH_HEAD
+            git -C "$ASSETS" checkout -B pr-assets
+          else
+            git worktree add --orphan -b pr-assets "$ASSETS"
+          fi
+          mkdir -p "$ASSETS/$DIR"
+          for f in build/smoke/snapshots/*.png; do
+            # Keep images small for the PR description.
+            sips -Z 1400 "$f" --out "$ASSETS/$DIR/$(basename "$f")" >/dev/null
+          done
+          git -C "$ASSETS" add "$DIR"
+          git -C "$ASSETS" commit -m "Screenshots for $DIR from run ${{ github.run_id }}"
+          git -C "$ASSETS" push origin pr-assets
+          echo "::notice title=pr-assets::$(git -C "$ASSETS" rev-parse HEAD)"
 
       - uses: actions/upload-artifact@v5
         if: always()
