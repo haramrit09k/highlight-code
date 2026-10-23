@@ -18,9 +18,9 @@ struct Snapshotter {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         for (name, appearance) in [("settings-light", NSAppearance.Name.aqua), ("settings-dark", .darkAqua)] {
-            let window = SettingsView.makeWindow(preferences: preferences) { options in
+            let window = SettingsView.makeWindow(preferences: preferences, preview: { options in
                 try? formatter().format(SettingsView.sampleCode, options: options).attributed
-            }
+            })
             window.appearance = NSAppearance(named: appearance)
             write(window.contentView, to: directory.appendingPathComponent("\(name).png"))
         }

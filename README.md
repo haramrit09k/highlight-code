@@ -72,11 +72,21 @@ You can always build it yourself from source instead (see [Development](#develop
 Open the app from Applications at any time to change the theme or font size, or to turn
 the floating button on or off.
 
+### Colours in Notes need Accessibility access
+
+Notes drops the colours (and font) of pasted rich text, unless it's pasted with
+**Edit › Paste and Retain Style** (<kbd>⌥⇧⌘V</kbd>). With **Accessibility** access
+(System Settings › Privacy & Security › Accessibility, or **Grant Access…** in the app),
+Highlight Code does that for you, from both the floating button and the Services menu.
+
+Without it, choose **Services › Copy Highlighted Code** and press <kbd>⌥⇧⌘V</kbd> in
+your note. Other apps (TextEdit, Pages, Mail…) keep the colours either way.
+
 ### The floating button
 
 Turn it on in the app's settings window. It needs the **Accessibility** permission, the
 same one screen readers and window managers use, so it can see what you select in Notes
-and paste the highlighted version through Notes' own **Edit › Paste**. Your clipboard is
+and paste the highlighted version through Notes' own **Edit › Paste and Retain Style**. Your clipboard is
 restored afterwards. Turn on **Open at login** to keep the button available after a
 restart.
 

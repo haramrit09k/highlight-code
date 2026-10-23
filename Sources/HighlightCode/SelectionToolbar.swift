@@ -6,10 +6,10 @@ import HighlightCore
 /// Shows a small floating "Highlight" button next to the text selected in Apple Notes.
 ///
 /// Notes itself is not modified: like screen readers and tools such as Pronotes, this uses
-/// the Accessibility API to follow the selection, and pastes the result through Notes'
-/// own Edit › Paste menu item. It needs the Accessibility permission.
+/// the Accessibility API to follow the selection, and pastes the result with Notes' own
+/// Edit › Paste and Retain Style (see NotesPaster). It needs the Accessibility permission.
 final class SelectionToolbar: NSObject {
-    static let notesBundleID = "com.apple.Notes"
+    static let notesBundleID = NotesPaster.notesBundleID
     /// The button appears once the selection stops changing for this long (e.g. drag ended).
     private static let settleDelay: TimeInterval = 0.25
 
@@ -175,57 +175,16 @@ final class SelectionToolbar: NSObject {
     }
 
     private func highlightSelection(as choice: LanguageChoice) {
-        guard let element = focusedTextElement(), let text = selectedText(of: element), !text.isEmpty else {
+        guard let pid = observedPID, let element = focusedTextElement(),
+              let text = selectedText(of: element), !text.isEmpty else {
             NSSound.beep()
             return
         }
-
-        let pasteboard = NSPasteboard.general
-        let saved = PasteboardSnapshot(pasteboard)
         do {
-            try write(text, choice, pasteboard)
+            try NotesPaster.paste(into: pid) { pasteboard in try write(text, choice, pasteboard) }
         } catch {
             NSSound.beep()
-            return
         }
-        let ourChange = pasteboard.changeCount
-        paste()
-
-        // Put the user's clipboard back once Notes has read ours.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            if pasteboard.changeCount == ourChange { saved.restore(to: pasteboard) }
-        }
-    }
-
-    /// Presses Notes' Edit › Paste (found by its ⌘V shortcut, so it works in any language),
-    /// falling back to a ⌘V keystroke.
-    private func paste() {
-        if let notesElement, let item = pasteMenuItem(in: notesElement),
-           AXUIElementPerformAction(item, kAXPressAction as CFString) == .success {
-            return
-        }
-        let source = CGEventSource(stateID: .combinedSessionState)
-        let keyV: CGKeyCode = 9
-        for keyDown in [true, false] {
-            let event = CGEvent(keyboardEventSource: source, virtualKey: keyV, keyDown: keyDown)
-            event?.flags = .maskCommand
-            event?.post(tap: .cghidEventTap)
-        }
-    }
-
-    private func pasteMenuItem(in application: AXUIElement) -> AXUIElement? {
-        guard let menuBar: AXUIElement = attribute(kAXMenuBarAttribute, of: application) else { return nil }
-        for menuBarItem in children(of: menuBar) {
-            for menu in children(of: menuBarItem) {
-                for item in children(of: menu) {
-                    let character: String? = attribute(kAXMenuItemCmdCharAttribute, of: item)
-                    let modifiers: NSNumber? = attribute(kAXMenuItemCmdModifiersAttribute, of: item)
-                    // A modifiers value of 0 means "⌘ only".
-                    if character?.uppercased() == "V", modifiers?.intValue == 0 { return item }
-                }
-            }
-        }
-        return nil
     }
 
     // MARK: Accessibility helpers
@@ -257,16 +216,8 @@ final class SelectionToolbar: NSObject {
         return AXValueGetValue(result as! AXValue, .cgRect, &rect) && rect.width >= 0 ? rect : nil
     }
 
-    private func children(of element: AXUIElement) -> [AXUIElement] {
-        attribute(kAXChildrenAttribute, of: element) ?? []
-    }
-
     private func attribute<T>(_ name: String, of element: AXUIElement) -> T? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success, let value else { return nil }
-        if T.self == AXUIElement.self, CFGetTypeID(value) != AXUIElementGetTypeID() { return nil }
-        if T.self == AXValue.self, CFGetTypeID(value) != AXValueGetTypeID() { return nil }
-        return value as? T
+        NotesPaster.attribute(name, of: element)
     }
 
     // MARK: Panel
@@ -288,31 +239,6 @@ final class SelectionToolbar: NSObject {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
         panel.contentView = toolbarView
         return panel
-    }
-}
-
-/// A copy of everything on a pasteboard, so it can be put back afterwards.
-private struct PasteboardSnapshot {
-    private let items: [[NSPasteboard.PasteboardType: Data]]
-
-    init(_ pasteboard: NSPasteboard) {
-        items = (pasteboard.pasteboardItems ?? []).map { item in
-            var contents: [NSPasteboard.PasteboardType: Data] = [:]
-            for type in item.types {
-                if let data = item.data(forType: type) { contents[type] = data }
-            }
-            return contents
-        }
-    }
-
-    func restore(to pasteboard: NSPasteboard) {
-        pasteboard.clearContents()
-        guard !items.isEmpty else { return }
-        pasteboard.writeObjects(items.map { contents in
-            let item = NSPasteboardItem()
-            for (type, data) in contents { item.setData(data, forType: type) }
-            return item
-        })
     }
 }
 #endif
