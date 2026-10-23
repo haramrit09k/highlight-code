@@ -13,7 +13,19 @@ security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 security set-keychain-settings -lut 21600 "$KEYCHAIN"
 security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 
-printf '%s' "$MACOS_SIGNING_P12" | base64 --decode > "$TEMP/signing.p12"
+printf '%s' "$MACOS_SIGNING_P12" | base64 --decode > "$TEMP/original.p12"
+
+# A .p12 exported by OpenSSL 3 (Homebrew's `openssl`) uses AES and a SHA-256 MAC, which
+# `security import` rejects as "MAC verification failed". Re-export it in the legacy
+# format (3DES/RC2, SHA-1 MAC) that macOS reads; `-legacy` reads either format.
+OPENSSL3="$(brew --prefix openssl@3)/bin/openssl"
+export MACOS_SIGNING_P12_PASSWORD
+"$OPENSSL3" pkcs12 -legacy -in "$TEMP/original.p12" -passin env:MACOS_SIGNING_P12_PASSWORD \
+  -nodes -out "$TEMP/signing.pem"
+"$OPENSSL3" pkcs12 -export -legacy -in "$TEMP/signing.pem" -name "Highlight Code (self-signed)" \
+  -out "$TEMP/signing.p12" -passout env:MACOS_SIGNING_P12_PASSWORD
+rm -f "$TEMP/original.p12" "$TEMP/signing.pem"
+
 security import "$TEMP/signing.p12" -k "$KEYCHAIN" -P "$MACOS_SIGNING_P12_PASSWORD" -T /usr/bin/codesign
 rm -f "$TEMP/signing.p12"
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
