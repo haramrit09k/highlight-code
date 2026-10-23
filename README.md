@@ -17,6 +17,11 @@
   <a href="https://github.com/haramrit09k/highlight-code/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/haramrit09k/highlight-code?label=latest"></a>
 </p>
 
+<p align="center">
+  <img src="docs/images/before-after.webp" width="900"
+       alt="A note in Apple Notes before and after Highlight Code: plain JavaScript, Python and Swift snippets become monospaced, syntax-coloured code blocks">
+</p>
+
 ---
 
 Apple Notes is great for study notes, but code in it is plain text: even the built-in
@@ -38,7 +43,12 @@ tiny open-source Mac app that adds syntax highlighting to Notes, without modifyi
   leaves it; the only network use is a daily check for updates. Without the floating
   button, the app quits itself when idle.
 
-It works in other apps with rich text too (TextEdit, Pages, Mail, Keynote…).
+It works in other apps with rich text too (TextEdit, Pages, Mail, Keynote…):
+
+<p align="center">
+  <img src="docs/images/other-apps.png" width="700"
+       alt="A highlighted YAML snippet in a new Mail message">
+</p>
 
 ## Install
 
