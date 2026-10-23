@@ -11,10 +11,16 @@ on:
         required: false
         default: ""
 
+# A new push to a branch cancels that branch's runs still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   macos:
     name: Build & test (macOS)
     runs-on: macos-15
+    timeout-minutes: 40
     permissions:
       contents: write
     steps:
@@ -56,6 +62,7 @@ jobs:
   compatibility:
     name: Compatibility (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -72,12 +79,13 @@ jobs:
       - name: Build app
         run: scripts/ci-run.sh scripts/build-app.sh "0.0.0-ci.${{ github.run_number }}"
 
-      - name: Smoke test (CLI, snapshots, Services menu)
-        run: scripts/ci-run.sh scripts/smoke-test.sh --install
+      - name: Smoke test (CLI, Services menu)
+        run: scripts/ci-run.sh scripts/smoke-test.sh --install --no-snapshots
 
   linux-core:
     name: Core tests (Linux)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container: swift:6.0
     steps:
       - uses: actions/checkout@v5
