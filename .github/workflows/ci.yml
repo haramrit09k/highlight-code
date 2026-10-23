@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    # "labeled" so that adding the "snapshots" label publishes screenshots straight away.
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
     inputs:
       screenshots_dir:
