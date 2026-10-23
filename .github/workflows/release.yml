@@ -9,9 +9,15 @@ on:
 permissions:
   contents: write
 
+# Never run two releases at once, and never cancel one halfway through publishing.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: macos-15
+    timeout-minutes: 45
     env:
       MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
       MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
