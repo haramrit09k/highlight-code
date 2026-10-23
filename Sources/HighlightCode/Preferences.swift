@@ -24,6 +24,16 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(floatingButton, forKey: "floatingButton") }
     }
 
+    /// Which side of the selection the floating button prefers.
+    @Published var toolbarEdge: ToolbarPlacement.Edge {
+        didSet { defaults.set(toolbarEdge.rawValue, forKey: "toolbarEdge") }
+    }
+
+    /// Languages recently picked in the language menu, newest first.
+    @Published var recentLanguages: RecentLanguages {
+        didSet { defaults.set(recentLanguages.ids, forKey: "recentLanguages") }
+    }
+
     /// Whether the Accessibility permission (needed by the floating button) is granted.
     /// Not persisted: macOS is the source of truth, and AppDelegate keeps it current.
     @Published var accessibilityTrusted = false
@@ -51,7 +61,13 @@ final class Preferences: ObservableObject {
         let stored = defaults.double(forKey: "fontSize")
         fontSize = Self.fontSizes.contains(stored) ? stored : 13
         floatingButton = defaults.bool(forKey: "floatingButton")
+        toolbarEdge = ToolbarPlacement.Edge(rawValue: defaults.string(forKey: "toolbarEdge") ?? "") ?? .below
+        recentLanguages = RecentLanguages(ids: defaults.stringArray(forKey: "recentLanguages") ?? [])
         openAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    func noteUsed(_ choice: LanguageChoice) {
+        if let id = choice.languageID { recentLanguages.use(id) }
     }
 
     var renderOptions: RenderOptions {

@@ -29,7 +29,8 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     step(1, "Select code in a note. Markdown fences such as ```python set the language.")
                     step(2, "Click the floating Highlight Code button (see below), or right-click the selection and choose Services › Highlight Code.")
-                    step(3, "Optional: give it a shortcut in System Settings › Keyboard › Keyboard Shortcuts › Services › Text.")
+                    step(3, "To pick the language yourself, click ▾ on the floating button or choose Services › Highlight Code As…")
+                    step(4, "Optional: give it a shortcut in System Settings › Keyboard › Keyboard Shortcuts › Services › Text.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(6)
@@ -56,6 +57,13 @@ struct SettingsView: View {
                             Spacer()
                             Toggle("Open at login", isOn: $preferences.openAtLogin)
                         }
+                        .font(.callout)
+                        Picker("Position", selection: $preferences.toolbarEdge) {
+                            Text("Below the selection").tag(ToolbarPlacement.Edge.below)
+                            Text("Above the selection").tag(ToolbarPlacement.Edge.above)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(maxWidth: 380)
                         .font(.callout)
                     }
                     Text("Optional. Uses the Accessibility permission to see your selection in Notes, the same way screen readers do. Notes itself is never modified.")

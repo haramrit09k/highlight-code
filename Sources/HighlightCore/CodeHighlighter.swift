@@ -60,6 +60,14 @@ public final class CodeHighlighter {
         context.evaluateScript("hljs.listLanguages()")?.toArray() as? [String] ?? []
     }
 
+    /// The languages to offer in the picker, with display names, sorted by name.
+    public var languages: [LanguageInfo] {
+        let script = "hljs.listLanguages().map(function (id) { return [id, hljs.getLanguage(id).name || id]; })"
+        let pairs = (context.evaluateScript(script)?.toArray() as? [[String]] ?? [])
+            .compactMap { pair in pair.count == 2 ? (id: pair[0], name: pair[1]) : nil }
+        return LanguageCatalog.languages(fromHighlightJS: pairs)
+    }
+
     /// Highlights `code`, using `language` (an id or alias such as `py`) when highlight.js
     /// knows it and auto-detecting otherwise.
     public func highlight(_ code: String, language: String? = nil) -> HighlightResult {

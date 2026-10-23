@@ -15,17 +15,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let arguments: [String]
     private let preferences = Preferences.shared
     private var cachedFormatter: SnippetFormatter?
+    private var cachedLanguages: [LanguageInfo] = []
     private var serviceProvider: ServiceProvider?
     private var settingsWindow: NSWindow?
     private var handledRequest = false
     private var idleTimer: Timer?
     private var trustTimer: Timer?
     private var subscriptions: Set<AnyCancellable> = []
-    private lazy var toolbar = SelectionToolbar { [weak self] text, pasteboard in
-        guard let self else { return }
-        try self.formatter().write(text, options: self.preferences.renderOptions, to: pasteboard)
-        self.noteActivity()
-    }
+    private lazy var toolbar = SelectionToolbar(
+        write: { [weak self] text, choice, pasteboard in
+            guard let self else { return }
+            self.preferences.noteUsed(choice)
+            try self.formatter().write(text, language: choice.languageID, options: self.preferences.renderOptions, to: pasteboard)
+            self.noteActivity()
+        },
+        languageMenu: { [weak self] in
+            self?.languageMenu() ?? LanguageMenu(languages: [], recentIDs: [])
+        },
+        edge: { [weak self] in
+            self?.preferences.toolbarEdge ?? .below
+        }
+    )
 
     init(arguments: [String]) {
         self.arguments = arguments
@@ -33,9 +43,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func formatter() throws -> SnippetFormatter {
         if let cachedFormatter { return cachedFormatter }
-        let formatter = SnippetFormatter(highlighter: try CodeHighlighter(bundle: .main))
+        let highlighter = try CodeHighlighter(bundle: .main)
+        let formatter = SnippetFormatter(highlighter: highlighter)
         cachedFormatter = formatter
+        cachedLanguages = highlighter.languages
         return formatter
+    }
+
+    func languageMenu() -> LanguageMenu {
+        _ = try? formatter()
+        return LanguageMenu(languages: cachedLanguages, recentIDs: preferences.recentLanguages.ids)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -45,7 +62,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         NSApp.setActivationPolicy(.accessory)
-        let provider = ServiceProvider(preferences: preferences, formatter: formatter) { [weak self] in
+        let provider = ServiceProvider(
+            preferences: preferences,
+            formatter: formatter,
+            languageMenu: languageMenu
+        ) { [weak self] in
             self?.handledRequest = true
             self?.noteActivity()
         }

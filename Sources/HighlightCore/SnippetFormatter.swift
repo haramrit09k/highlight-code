@@ -14,9 +14,11 @@ public final class SnippetFormatter {
         public var language: String?
     }
 
-    public func format(_ text: String, options: RenderOptions) -> Output {
+    /// - Parameter language: a language picked by the user; it wins over a Markdown fence.
+    ///   `nil` uses the fence's language, or auto-detects.
+    public func format(_ text: String, language: String? = nil, options: RenderOptions) -> Output {
         let snippet = CodeSnippet.parse(text)
-        let result = highlighter.highlight(snippet.code, language: snippet.language)
+        let result = highlighter.highlight(snippet.code, language: language ?? snippet.language)
         return Output(
             attributed: CodeRenderer.attributedString(for: result.runs, options: options),
             language: result.language
@@ -25,8 +27,8 @@ public final class SnippetFormatter {
 
     /// Writes the formatted text to `pasteboard` as RTF plus a plain-text fallback.
     @discardableResult
-    public func write(_ text: String, options: RenderOptions, to pasteboard: NSPasteboard) -> Output {
-        let output = format(text, options: options)
+    public func write(_ text: String, language: String? = nil, options: RenderOptions, to pasteboard: NSPasteboard) -> Output {
+        let output = format(text, language: language, options: options)
         pasteboard.clearContents()
         pasteboard.declareTypes([.rtf, .string], owner: nil)
         if let rtf = CodeRenderer.rtfData(for: output.attributed) {

@@ -2,6 +2,11 @@
 import AppKit
 import HighlightCore
 
+private final class SnapshotTarget: NSObject {
+    static let shared = SnapshotTarget()
+    @objc func noop() {}
+}
+
 /// `HighlightCode --snapshot <dir>` renders the settings window and a before/after example
 /// to PNG files, for documentation and CI. It needs no screen-recording permission.
 struct Snapshotter {
@@ -34,6 +39,70 @@ struct Snapshotter {
             ])
             write(beforeAfter(plain: plain, highlighted: formatted), to: directory.appendingPathComponent("before-after.png"))
         }
+        write(toolbarExample(), to: directory.appendingPathComponent("toolbar.png"))
+        captureLanguageMenu(to: directory.appendingPathComponent("language-menu.png"))
+    }
+
+    /// The floating button under a selection, on light and dark notes.
+    private func toolbarExample() -> NSView {
+        let cell = NSSize(width: 460, height: 170)
+        let padding: CGFloat = 16
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: cell.width * 2 + padding * 3, height: cell.height + padding * 2))
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(white: 0.85, alpha: 1).cgColor
+        let code = "pizzaOrder\n    .then(pizza => console.log(pizza))\n    .catch(err => console.log(err))"
+
+        for (column, dark) in [false, true].enumerated() {
+            let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            let note = NSView(frame: NSRect(x: padding + CGFloat(column) * (cell.width + padding), y: padding, width: cell.width, height: cell.height))
+            note.appearance = appearance
+            note.wantsLayer = true
+            note.layer?.backgroundColor = (dark ? NSColor(white: 0.118, alpha: 1) : .white).cgColor
+
+            let text = NSTextView(frame: NSRect(x: 0, y: 70, width: cell.width, height: 90))
+            text.drawsBackground = false
+            text.textContainerInset = NSSize(width: 16, height: 10)
+            text.textStorage?.setAttributedString(NSAttributedString(string: code, attributes: [
+                .font: NSFont.systemFont(ofSize: 14),
+                .foregroundColor: NSColor.textColor,
+                // Stands in for the selection highlight, which is only drawn in a key window.
+                .backgroundColor: NSColor(calibratedRed: 1, green: 0.8, blue: 0.3, alpha: dark ? 0.35 : 0.45),
+            ]))
+            note.addSubview(text)
+
+            let toolbar = ToolbarView(target: SnapshotTarget.shared, highlight: #selector(SnapshotTarget.noop),
+                                      chooseLanguage: #selector(SnapshotTarget.noop), vibrant: false)
+            toolbar.appearance = appearance
+            toolbar.setFrameOrigin(NSPoint(x: 16, y: 70 - 8 - ToolbarView.height))
+            note.addSubview(toolbar)
+            container.addSubview(note)
+        }
+        return container
+    }
+
+    /// Opens the language menu over a window and captures the screen with `screencapture`.
+    /// Best effort: it needs a display (and, outside CI, screen-recording permission).
+    private func captureLanguageMenu(to url: URL) {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 560), styleMask: [.titled], backing: .buffered, defer: false)
+        window.title = "Highlight Code"
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        let languages = (try? CodeHighlighter(bundle: .main).languages) ?? []
+        let menu = LanguageMenu(languages: languages, recentIDs: ["javascript", "swift", "python"]).makeMenu()
+        let frame = window.frame
+        let timer = Timer(timeInterval: 1.0, repeats: false) { _ in
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+            task.arguments = ["-x", "-R\(Int(frame.minX)),\(Int(NSScreen.main!.frame.height - frame.maxY)),\(Int(frame.width)),\(Int(frame.height))", url.path]
+            try? task.run()
+            task.waitUntilExit()
+            print(FileManager.default.fileExists(atPath: url.path) ? "Wrote \(url.path)" : "Could not capture the language menu")
+            menu.cancelTracking()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        menu.popUp(positioning: nil, at: NSPoint(x: 40, y: window.contentView!.bounds.maxY - 30), in: window.contentView)
         NSApp.terminate(nil)
     }
 

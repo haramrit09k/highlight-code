@@ -21,7 +21,7 @@ echo "PASS"
 
 echo "==> Snapshots"
 "$BIN" --snapshot "$OUT/snapshots"
-for name in settings-light settings-dark before-after; do
+for name in settings-light settings-dark before-after toolbar; do
   test -s "$OUT/snapshots/$name.png" || { echo "FAIL: missing $name.png"; exit 1; }
 done
 echo "PASS"

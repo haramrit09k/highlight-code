@@ -75,6 +75,30 @@ final class CodeHighlighterTests: XCTestCase {
         XCTAssertEqual(font.pointSize, 13)
     }
 
+    func testLanguageListForPicker() {
+        let languages = highlighter.languages
+        XCTAssertGreaterThanOrEqual(languages.count, 50)
+        XCTAssertTrue(languages.contains(LanguageInfo(id: "cpp", name: "C++")))
+        XCTAssertTrue(languages.contains(LanguageInfo(id: "xml", name: "HTML / XML")))
+        XCTAssertFalse(languages.contains { $0.id == "php-template" })
+        for id in LanguageCatalog.popularIDs {
+            XCTAssertTrue(languages.contains { $0.id == id }, id)
+        }
+    }
+
+    func testPickedLanguageOverridesFenceAndDetection() {
+        let formatter = SnippetFormatter(highlighter: highlighter)
+        let fenced = formatter.format("```python\nlet x = 1\n```", language: "swift", options: RenderOptions())
+        XCTAssertEqual(fenced.language, "swift")
+        XCTAssertEqual(fenced.attributed.string, "let x = 1")
+
+        let picked = formatter.format("SELECT 1 FROM t;", language: "rb", options: RenderOptions())
+        XCTAssertEqual(picked.language, "ruby")
+
+        let plain = formatter.format("def f(): pass", language: "plaintext", options: RenderOptions())
+        XCTAssertNil(plain.attributed.attribute(.foregroundColor, at: 0, effectiveRange: nil))
+    }
+
     func testPasteboardGetsRTFAndPlainText() throws {
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("HighlightCodeTests-\(UUID().uuidString)"))
         defer { pasteboard.releaseGlobally() }
