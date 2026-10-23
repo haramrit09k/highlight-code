@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.setActivationPolicy(.accessory)
         DebugLog.write("launched \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "?") from \(Bundle.main.bundlePath)")
         quitOtherCopies()
+        if AppMover.isTranslocated, AppMover.offerToMove() { return }
         let provider = ServiceProvider(
             preferences: preferences,
             formatter: formatter,
