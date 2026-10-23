@@ -21,6 +21,8 @@ final class SelectionToolbar: NSObject {
     private var observedPID: pid_t?
     private var workspaceObserver: NSObjectProtocol?
     private var pendingUpdate: DispatchWorkItem?
+    /// The selection the button is currently shown for.
+    private var shownRange: (location: Int, length: Int)?
     private lazy var toolbarView = ToolbarView(
         target: self,
         highlight: #selector(highlightClicked),
@@ -117,6 +119,12 @@ final class SelectionToolbar: NSObject {
     }
 
     private func selectionChanged() {
+        // Notes also reports "selection changed" when the selection stays the same (focus
+        // moves, redraws, autosave); leave the button where it is then, or it flickers.
+        if let shownRange, let element = focusedTextElement(), let range = selectedRange(of: element),
+           range.location == shownRange.location, range.length == shownRange.length {
+            return
+        }
         hidePanel()
         pendingUpdate?.cancel()
         let update = DispatchWorkItem { [weak self] in self?.showPanelForCurrentSelection() }
@@ -147,10 +155,12 @@ final class SelectionToolbar: NSObject {
             context.duration = 0.12
             panel.animator().alphaValue = 1
         }
+        shownRange = (range.location, range.length)
     }
 
     private func hidePanel() {
         panel.orderOut(nil)
+        shownRange = nil
     }
 
     // MARK: Highlighting
