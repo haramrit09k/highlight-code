@@ -68,7 +68,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-14, macos-15-intel, macos-26, macos-26-intel]
+        # Intel is covered by macos-15-intel. macos-26-intel is left out: its jobs hung
+        # for hours (rendering the snapshots) and blocked the queue.
+        runner: [macos-14, macos-15-intel, macos-26]
     steps:
       - uses: actions/checkout@v5
 
