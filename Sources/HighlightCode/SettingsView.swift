@@ -21,6 +21,7 @@ struct SettingsView: View {
 
     @ObservedObject var preferences: Preferences
     let preview: (RenderOptions) -> NSAttributedString?
+    let requestAccessibility: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -37,28 +38,23 @@ struct SettingsView: View {
                 Text("How to use").font(.headline)
             }
             GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        if preferences.accessibilityTrusted {
+                            Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Label("Accessibility access needed for colours in Notes", systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Button("Grant Access…", action: requestAccessibility)
+                        }
+                    }
                     Toggle("Show a “Highlight Code” button when I select text in Notes", isOn: $preferences.floatingButton)
                     if preferences.floatingButton {
-                        HStack(spacing: 12) {
-                            if preferences.accessibilityTrusted {
-                                Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                            } else {
-                                Label("Needs Accessibility access", systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                                Button("Open Privacy Settings…") {
-                                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                                        NSWorkspace.shared.open(url)
-                                    }
-                                }
-                            }
-                            Spacer()
-                            Toggle("Open at login", isOn: $preferences.openAtLogin)
-                        }
-                        .font(.callout)
+                        Toggle("Open at login, so the button is always available", isOn: $preferences.openAtLogin)
+                            .padding(.leading, 20)
                     }
-                    Text("Optional. Uses the Accessibility permission to see your selection in Notes, the same way screen readers do. Notes itself is never modified.")
+                    Text("Notes only keeps the colours of pasted code when it is pasted with Edit › Paste and Retain Style. Accessibility access lets Highlight Code do that for you, and see your selection for the floating button, the same way screen readers do. Notes itself is never modified.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -66,7 +62,7 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(6)
             } label: {
-                Text("Floating button").font(.headline)
+                Text("Apple Notes").font(.headline)
             }
             GroupBox {
                 HStack(spacing: 24) {
@@ -164,8 +160,14 @@ struct SettingsView: View {
         return Text(result)
     }
 
-    static func makeWindow(preferences: Preferences, preview: @escaping (RenderOptions) -> NSAttributedString?) -> NSWindow {
-        let controller = NSHostingController(rootView: SettingsView(preferences: preferences, preview: preview))
+    static func makeWindow(
+        preferences: Preferences,
+        preview: @escaping (RenderOptions) -> NSAttributedString?,
+        requestAccessibility: @escaping () -> Void = {}
+    ) -> NSWindow {
+        let controller = NSHostingController(rootView: SettingsView(
+            preferences: preferences, preview: preview, requestAccessibility: requestAccessibility
+        ))
         let window = NSWindow(contentViewController: controller)
         // SwiftUI sizes the window lazily on first display; size it now so it centres
         // correctly and can be rendered off-screen by the snapshot mode.

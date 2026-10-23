@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var handledRequest = false
     private var idleTimer: Timer?
     private var trustTimer: Timer?
+    private var explainedNotesAccessibility = false
     private var subscriptions: Set<AnyCancellable> = []
     private lazy var toolbar = SelectionToolbar { [weak self] text, pasteboard in
         guard let self else { return }
@@ -45,7 +46,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         NSApp.setActivationPolicy(.accessory)
-        let provider = ServiceProvider(preferences: preferences, formatter: formatter) { [weak self] in
+        let provider = ServiceProvider(
+            preferences: preferences,
+            formatter: formatter,
+            onNotesNeedsAccessibility: { [weak self] in
+                DispatchQueue.main.async { self?.explainNotesAccessibility() }
+            }
+        ) { [weak self] in
             self?.handledRequest = true
             self?.noteActivity()
         }
@@ -85,7 +92,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         idleTimer?.invalidate()
         preferences.accessibilityTrusted = SelectionToolbar.isTrusted
         if settingsWindow == nil {
-            let window = SettingsView.makeWindow(preferences: preferences, preview: previewText)
+            let window = SettingsView.makeWindow(
+                preferences: preferences,
+                preview: previewText,
+                requestAccessibility: { [weak self] in self?.requestAccessibility() }
+            )
             window.delegate = self
             settingsWindow = window
         }
@@ -114,6 +125,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         } else {
             SelectionToolbar.requestTrust()
             waitForTrust()
+        }
+    }
+
+    func requestAccessibility() {
+        SelectionToolbar.requestTrust()
+        waitForTrust()
+    }
+
+    /// Shown (once per launch) when "Highlight Code" is used in Notes without Accessibility
+    /// access: Notes then drops the colours, see NotesPaster.
+    private func explainNotesAccessibility() {
+        guard !explainedNotesAccessibility else { return }
+        explainedNotesAccessibility = true
+        let alert = NSAlert()
+        alert.messageText = "Let Highlight Code paste into Notes?"
+        alert.informativeText = """
+        Notes only keeps the colours of pasted code when it is pasted with Edit › Paste and \
+        Retain Style. With Accessibility access, Highlight Code does that for you.
+
+        Without it, choose Services › Copy Highlighted Code, then press ⌥⇧⌘V in your note.
+        """
+        alert.addButton(withTitle: "Grant Access…")
+        alert.addButton(withTitle: "Not Now")
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            requestAccessibility()
         }
     }
 
