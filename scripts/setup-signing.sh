@@ -42,7 +42,11 @@ EOF
 openssl req -x509 -newkey rsa:2048 -nodes -days 7300 -config cert.cnf \
   -keyout signing-key.pem -out signing-cert.pem 2>/dev/null
 P12_PASSWORD="$(openssl rand -base64 24)"
-openssl pkcs12 -export -inkey signing-key.pem -in signing-cert.pem -name "$NAME" \
+# OpenSSL 3 (e.g. Homebrew's) defaults to an encryption macOS's `security import` can't
+# read; ask it for the legacy format. macOS's own LibreSSL already uses that format.
+LEGACY=()
+if openssl version | grep -q '^OpenSSL 3'; then LEGACY=(-legacy); fi
+openssl pkcs12 -export "${LEGACY[@]}" -inkey signing-key.pem -in signing-cert.pem -name "$NAME" \
   -out signing.p12 -passout pass:"$P12_PASSWORD"
 printf '%s' "$P12_PASSWORD" > signing-p12-password.txt
 rm signing-key.pem cert.cnf
