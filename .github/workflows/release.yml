@@ -1,0 +1,32 @@
+name: Release
+
+# Push a tag like v1.0.0 to build the app and publish it as a GitHub Release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        run: swift test
+
+      - name: Build app
+        run: scripts/build-app.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Smoke test
+        run: scripts/smoke-test.sh
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/HighlightCode-*.zip \
+            --title "Highlight Code ${GITHUB_REF_NAME}" \
+            --generate-notes

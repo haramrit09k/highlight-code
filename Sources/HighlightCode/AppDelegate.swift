@@ -1,0 +1,142 @@
+#if canImport(AppKit)
+import AppKit
+import Combine
+import HighlightCore
+import SwiftUI
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    /// When launched by macOS to run a service, the request arrives right after launch;
+    /// the settings window is shown only if none arrives within this delay.
+    private static let welcomeDelay: TimeInterval = 0.75
+    /// Without the floating button, the app quits after this long without a request,
+    /// so it never lingers in the background.
+    private static let idleTimeout: TimeInterval = 15 * 60
+
+    private let arguments: [String]
+    private let preferences = Preferences.shared
+    private var cachedFormatter: SnippetFormatter?
+    private var serviceProvider: ServiceProvider?
+    private var settingsWindow: NSWindow?
+    private var handledRequest = false
+    private var idleTimer: Timer?
+    private var trustTimer: Timer?
+    private var subscriptions: Set<AnyCancellable> = []
+    private lazy var toolbar = SelectionToolbar { [weak self] text, pasteboard in
+        guard let self else { return }
+        try self.formatter().write(text, options: self.preferences.renderOptions, to: pasteboard)
+        self.noteActivity()
+    }
+
+    init(arguments: [String]) {
+        self.arguments = arguments
+    }
+
+    func formatter() throws -> SnippetFormatter {
+        if let cachedFormatter { return cachedFormatter }
+        let formatter = SnippetFormatter(highlighter: try CodeHighlighter(bundle: .main))
+        cachedFormatter = formatter
+        return formatter
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if let index = arguments.firstIndex(of: "--snapshot"), arguments.indices.contains(index + 1) {
+            Snapshotter(preferences: preferences, formatter: formatter).run(outputDirectory: arguments[index + 1])
+            return
+        }
+
+        NSApp.setActivationPolicy(.accessory)
+        let provider = ServiceProvider(preferences: preferences, formatter: formatter) { [weak self] in
+            self?.handledRequest = true
+            self?.noteActivity()
+        }
+        serviceProvider = provider
+        NSApp.servicesProvider = provider
+        NSUpdateDynamicServices()
+
+        preferences.accessibilityTrusted = SelectionToolbar.isTrusted
+        preferences.$floatingButton
+            .removeDuplicates()
+            .sink { [weak self] enabled in
+                // @Published fires before the stored value changes, so pass the new value on.
+                DispatchQueue.main.async { self?.floatingButtonChanged(enabled) }
+            }
+            .store(in: &subscriptions)
+
+        // With the floating button on, the app is usually started at login: stay quiet.
+        guard !preferences.floatingButton else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.welcomeDelay) { [weak self] in
+            guard let self, !self.handledRequest else { return }
+            self.showSettings()
+        }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showSettings()
+        return false
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func windowWillClose(_ notification: Notification) {
+        noteActivity()
+    }
+
+    func showSettings() {
+        idleTimer?.invalidate()
+        preferences.accessibilityTrusted = SelectionToolbar.isTrusted
+        if settingsWindow == nil {
+            let window = SettingsView.makeWindow(preferences: preferences, preview: previewText)
+            window.delegate = self
+            settingsWindow = window
+        }
+        settingsWindow?.center()
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func previewText(_ options: RenderOptions) -> NSAttributedString? {
+        try? formatter().format(SettingsView.sampleCode, options: options).attributed
+    }
+
+    // MARK: Floating button
+
+    private func floatingButtonChanged(_ enabled: Bool) {
+        guard enabled else {
+            trustTimer?.invalidate()
+            toolbar.stop()
+            noteActivity()
+            return
+        }
+        idleTimer?.invalidate()
+        if SelectionToolbar.isTrusted {
+            preferences.accessibilityTrusted = true
+            toolbar.start()
+        } else {
+            SelectionToolbar.requestTrust()
+            waitForTrust()
+        }
+    }
+
+    /// macOS has no notification for the Accessibility grant, so poll until it arrives.
+    private func waitForTrust() {
+        trustTimer?.invalidate()
+        trustTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            guard let self, SelectionToolbar.isTrusted else { return }
+            timer.invalidate()
+            self.preferences.accessibilityTrusted = true
+            if self.preferences.floatingButton { self.toolbar.start() }
+        }
+    }
+
+    // MARK: Idle quit
+
+    private func noteActivity() {
+        idleTimer?.invalidate()
+        guard !preferences.floatingButton else { return }
+        idleTimer = Timer.scheduledTimer(withTimeInterval: Self.idleTimeout, repeats: false) { [weak self] _ in
+            guard let self, self.settingsWindow?.isVisible != true, !self.preferences.floatingButton else { return }
+            NSApp.terminate(nil)
+        }
+    }
+}
+#endif

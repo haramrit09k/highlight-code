@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: Build & test (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Unit tests
+        run: swift test
+
+      - name: Build app
+        run: scripts/build-app.sh "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Smoke test (CLI, snapshots, Services menu)
+        run: scripts/smoke-test.sh --install
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HighlightCode-ci-${{ github.run_number }}
+          path: |
+            build/*.zip
+            build/smoke/
+          if-no-files-found: ignore
+
+  linux-core:
+    name: Core tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests
+        run: swift test
