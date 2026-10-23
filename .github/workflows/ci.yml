@@ -40,26 +40,7 @@ jobs:
            github.event.pull_request.head.repo.full_name == github.repository)
         env:
           DIR: ${{ inputs.screenshots_dir || format('pr-{0}', github.event.pull_request.number) }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          ASSETS="$RUNNER_TEMP/pr-assets"
-          if git fetch origin pr-assets; then
-            git worktree add "$ASSETS" FETCH_HEAD
-            git -C "$ASSETS" checkout -B pr-assets
-          else
-            git worktree add --orphan -b pr-assets "$ASSETS"
-          fi
-          mkdir -p "$ASSETS/$DIR"
-          for f in build/smoke/snapshots/*.png; do
-            # Keep images small for the PR description.
-            sips -Z 1200 -s format jpeg -s formatOptions 82 "$f" \
-              --out "$ASSETS/$DIR/$(basename "$f" .png).jpg" >/dev/null
-          done
-          git -C "$ASSETS" add "$DIR"
-          git -C "$ASSETS" commit -m "Screenshots for $DIR from run ${{ github.run_id }}"
-          git -C "$ASSETS" push origin pr-assets
-          echo "::notice title=pr-assets::$(git -C "$ASSETS" rev-parse HEAD)"
+        run: scripts/ci-run.sh scripts/publish-snapshots.sh "$DIR"
 
       - uses: actions/upload-artifact@v5
         if: always()
