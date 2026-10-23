@@ -19,11 +19,21 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
+    env:
+      # Signed with the project's stable self-signed identity when the secrets are
+      # available (not on forks), so test builds keep their Accessibility permission.
+      # No update key here: test builds must not offer to "update" to an older release.
+      MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
+      MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Toolchain
         run: swift --version
+
+      - name: Import signing certificate
+        if: env.MACOS_SIGNING_P12 != ''
+        run: scripts/ci-run.sh scripts/import-signing-cert.sh
 
       - name: Unit tests
         run: scripts/ci-run.sh swift test

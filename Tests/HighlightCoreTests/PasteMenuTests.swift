@@ -2,17 +2,19 @@
 import XCTest
 
 final class PasteMenuTests: XCTestCase {
-    /// Notes' Edit menu on macOS 26, as reported by Accessibility.
+    /// Notes' Edit menu on macOS 26, as reported by Accessibility in a user's log
+    /// (items without a shortcut report modifiers 8, "no ⌘").
     private let notesEditMenu = [
         PasteMenu.Item(title: "Undo Typing", key: "Z"),
-        PasteMenu.Item(title: "Redo", key: "Z", modifiers: 1),
-        PasteMenu.Item(title: ""),
+        PasteMenu.Item(title: "Redo Typing", key: "Z", modifiers: 1),
+        PasteMenu.Item(title: " ", modifiers: 8),
         PasteMenu.Item(title: "Cut", key: "X"),
         PasteMenu.Item(title: "Copy", key: "C"),
         PasteMenu.Item(title: "Paste", key: "V"),
         PasteMenu.Item(title: "Paste and Match Style", key: "V", modifiers: 3),
-        PasteMenu.Item(title: "Paste and Retain Style"),
-        PasteMenu.Item(title: "Delete"),
+        PasteMenu.Item(title: "Paste and Retain Style", modifiers: 8),
+        PasteMenu.Item(title: "Delete", key: "\u{8}", modifiers: 8),
+        PasteMenu.Item(title: "Rename", modifiers: 8),
         PasteMenu.Item(title: "Select All", key: "A"),
     ]
 

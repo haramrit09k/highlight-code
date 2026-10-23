@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let arguments: [String]
     private let preferences = Preferences.shared
     private var cachedFormatter: SnippetFormatter?
+    private var updater = Updater(start: false)
     private var cachedLanguages: [LanguageInfo] = []
     private var serviceProvider: ServiceProvider?
     private var settingsWindow: NSWindow?
@@ -64,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         NSApp.setActivationPolicy(.accessory)
+        updater = Updater(start: true)
         let provider = ServiceProvider(
             preferences: preferences,
             formatter: formatter,
@@ -115,7 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let window = SettingsView.makeWindow(
                 preferences: preferences,
                 preview: previewText,
-                requestAccessibility: { [weak self] in self?.requestAccessibility() }
+                requestAccessibility: { [weak self] in self?.requestAccessibility() },
+                updater: updater
             )
             window.delegate = self
             settingsWindow = window
