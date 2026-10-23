@@ -89,17 +89,16 @@ mkdir -p "$STAGING"
 ditto "$APP" "$STAGING/Highlight Code.app"
 ln -s /Applications "$STAGING/Applications"
 
-# hdiutil is deprecated as of macOS 27 in favour of `diskutil image` (macOS 26+). Use the
-# new tool where it exists, and fall back to hdiutil on older systems or if it fails.
+# hdiutil is deprecated as of macOS 27 in favour of `diskutil image`. That command exists
+# on macOS 14 and 15 too but can only create these images from macOS 26 on ("The disk image
+# format is not supported by this OS"), so try it first and fall back to hdiutil.
 DMG_TOOL=""
 if diskutil image --help 2>&1 | grep -q 'SUBCOMMANDS'; then
   if DISKUTIL_OUTPUT="$(diskutil image create from "$STAGING" --format UDZO "$DMG" 2>&1)" && [[ -s "$DMG" ]]; then
     DMG_TOOL="diskutil image"
   else
-    echo "diskutil image create failed; falling back to hdiutil:"
-    echo "$DISKUTIL_OUTPUT"
-    note_ci "diskutil image create failed: $(printf '%s' "$DISKUTIL_OUTPUT" | tail -n 5)"
-    note_ci "diskutil image create usage: $(diskutil image create 2>&1 | head -n 60)"
+    # Expected before macOS 26: the command exists but can't create this format yet.
+    echo "diskutil image create failed ($(printf '%s' "$DISKUTIL_OUTPUT" | tail -n 1)); using hdiutil"
     rm -f "$DMG"
   fi
 else
