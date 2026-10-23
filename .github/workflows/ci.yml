@@ -51,6 +51,30 @@ jobs:
             build/smoke/
           if-no-files-found: ignore
 
+  # The same checks on the other macOS versions and chips GitHub offers (macOS 13, the
+  # oldest version the app supports, no longer has hosted runners).
+  compatibility:
+    name: Compatibility (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, macos-15-intel, macos-26, macos-26-intel]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: System
+        run: sw_vers && uname -m && swift --version
+
+      - name: Unit tests
+        run: scripts/ci-run.sh swift test
+
+      - name: Build app
+        run: scripts/ci-run.sh scripts/build-app.sh "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Smoke test (CLI, snapshots, Services menu)
+        run: scripts/ci-run.sh scripts/smoke-test.sh --install
+
   linux-core:
     name: Core tests (Linux)
     runs-on: ubuntu-latest
