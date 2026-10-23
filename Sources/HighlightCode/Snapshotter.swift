@@ -17,7 +17,8 @@ struct Snapshotter {
                 try? formatter().format(SettingsView.sampleCode, options: options).attributed
             }
             window.appearance = NSAppearance(named: appearance)
-            write(window.contentView, to: directory.appendingPathComponent("\(name).png"))
+            write(window.contentView, to: directory.appendingPathComponent("\(name).png"),
+                  background: .windowBackgroundColor, appearance: window.appearance)
         }
 
         let code = """
@@ -67,7 +68,9 @@ struct Snapshotter {
         return container
     }
 
-    private func write(_ view: NSView?, to url: URL) {
+    /// - Parameter background: drawn under the view; off-screen rendering skips the
+    ///   window background, which would leave dark-mode text on transparent pixels.
+    private func write(_ view: NSView?, to url: URL, background: NSColor? = nil, appearance: NSAppearance? = nil) {
         guard let view else { return }
         view.layoutSubtreeIfNeeded()
         if view.bounds.isEmpty {
@@ -79,7 +82,20 @@ struct Snapshotter {
             return
         }
         view.cacheDisplay(in: view.bounds, to: rep)
-        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+        var output = rep
+        if let background, let flattened = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: flattened)
+            let rect = NSRect(origin: .zero, size: flattened.size)
+            (appearance ?? NSAppearance.currentDrawing()).performAsCurrentDrawingAppearance {
+                background.setFill()
+                rect.fill()
+            }
+            rep.draw(in: rect)
+            NSGraphicsContext.restoreGraphicsState()
+            output = flattened
+        }
+        try? output.representation(using: .png, properties: [:])?.write(to: url)
         print("Wrote \(url.path)")
     }
 }
