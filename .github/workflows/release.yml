@@ -54,6 +54,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/HighlightCode-*.zip build/appcast.xml \
+          gh release create "$GITHUB_REF_NAME" build/HighlightCode.dmg build/HighlightCode-*.zip build/appcast.xml \
             --title "Highlight Code ${GITHUB_REF_NAME}" \
             --generate-notes

@@ -66,6 +66,7 @@ jobs:
           name: HighlightCode-ci-${{ github.run_number }}
           path: |
             build/*.zip
+            build/*.dmg
             build/smoke/
           if-no-files-found: ignore
 

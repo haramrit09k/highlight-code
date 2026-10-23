@@ -2,7 +2,8 @@
 # Builds "Highlight Code.app" (universal: Apple Silicon + Intel) and a zip for release.
 #
 # Usage: scripts/build-app.sh [version]      e.g. scripts/build-app.sh 1.0.0
-# Output: build/Highlight Code.app and build/HighlightCode-<version>.zip
+# Output: build/Highlight Code.app, build/HighlightCode-<version>.zip (for updates and the
+#         install script) and build/HighlightCode.dmg (for people downloading by hand)
 #
 # Optional environment:
 #   SIGN_IDENTITY            code-signing identity (see scripts/import-signing-cert.sh);
@@ -17,7 +18,7 @@ BUILD="$ROOT/build"
 APP="$BUILD/Highlight Code.app"
 
 cd "$ROOT"
-rm -rf "$APP" "$BUILD"/HighlightCode-*.zip "$BUILD/AppIcon.iconset"
+rm -rf "$APP" "$BUILD"/HighlightCode-*.zip "$BUILD/HighlightCode.dmg" "$BUILD/AppIcon.iconset"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "==> Compiling"
@@ -72,5 +73,50 @@ codesign --display --requirements - "$APP" 2>/dev/null | sed -n 's/^designated =
 echo "==> Zipping"
 ZIP="$BUILD/HighlightCode-${VERSION}.zip"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+echo "==> Creating disk image"
+# The usual drag-to-install window: the app next to a shortcut to Applications. The name
+# has no version so README links to releases/latest/download/HighlightCode.dmg keep working.
+# The staging folder is named after the volume, so either tool below names it correctly.
+DMG="$BUILD/HighlightCode.dmg"
+STAGING="$BUILD/dmg/Highlight Code"
+# Shows a line in the GitHub Actions summary (multi-line text becomes one annotation).
+note_ci() {
+  [[ -n "${GITHUB_ACTIONS:-}" ]] || return 0
+  echo "::notice title=Disk image::$(printf '%s' "$1" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+}
+rm -rf "$BUILD/dmg"
+mkdir -p "$STAGING"
+ditto "$APP" "$STAGING/Highlight Code.app"
+ln -s /Applications "$STAGING/Applications"
+
+# hdiutil is deprecated as of macOS 27 in favour of `diskutil image`. That command exists
+# on macOS 14 and 15 too but can only create these images from macOS 26 on ("The disk image
+# format is not supported by this OS"), so try it first and fall back to hdiutil.
+DMG_TOOL=""
+if diskutil image --help 2>&1 | grep -q 'SUBCOMMANDS'; then
+  if DISKUTIL_OUTPUT="$(diskutil image create from "$STAGING" --format UDZO "$DMG" 2>&1)" && [[ -s "$DMG" ]]; then
+    DMG_TOOL="diskutil image"
+  else
+    # Expected before macOS 26: the command exists but can't create this format yet.
+    echo "diskutil image create failed ($(printf '%s' "$DISKUTIL_OUTPUT" | tail -n 1)); using hdiutil"
+    rm -f "$DMG"
+  fi
+else
+  note_ci "diskutil image is not available on macOS $(sw_vers -productVersion)"
+fi
+if [[ -z "$DMG_TOOL" ]]; then
+  for attempt in 1 2 3; do
+    # hdiutil occasionally fails with "Resource busy" on CI machines; try again.
+    hdiutil create -volname "Highlight Code" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null && break
+    [[ $attempt == 3 ]] && { echo "hdiutil create failed" >&2; exit 1; }
+    sleep 5
+  done
+  DMG_TOOL="hdiutil"
+fi
+echo "Disk image created with $DMG_TOOL"
+note_ci "created with $DMG_TOOL on macOS $(sw_vers -productVersion)"
+rm -rf "$BUILD/dmg"
+
 echo "Built $APP"
 echo "Built $ZIP"
+echo "Built $DMG"
