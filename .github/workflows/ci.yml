@@ -33,9 +33,13 @@ jobs:
         run: scripts/ci-run.sh scripts/smoke-test.sh --install
 
       - name: Publish snapshots to pr-assets
-        if: github.event_name == 'workflow_dispatch' && inputs.screenshots_dir != ''
+        # Manually with a folder name, or on pull requests labelled "snapshots" (from this repo).
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.screenshots_dir != '') ||
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'snapshots') &&
+           github.event.pull_request.head.repo.full_name == github.repository)
         env:
-          DIR: ${{ inputs.screenshots_dir }}
+          DIR: ${{ inputs.screenshots_dir || format('pr-{0}', github.event.pull_request.number) }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
