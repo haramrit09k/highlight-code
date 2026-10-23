@@ -164,6 +164,9 @@ struct SettingsView: View {
     static func makeWindow(preferences: Preferences, preview: @escaping (RenderOptions) -> NSAttributedString?) -> NSWindow {
         let controller = NSHostingController(rootView: SettingsView(preferences: preferences, preview: preview))
         let window = NSWindow(contentViewController: controller)
+        // SwiftUI sizes the window lazily on first display; size it now so it centres
+        // correctly and can be rendered off-screen by the snapshot mode.
+        window.setContentSize(controller.view.fittingSize)
         window.title = "Highlight Code"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false

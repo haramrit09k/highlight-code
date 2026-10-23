@@ -70,7 +70,14 @@ struct Snapshotter {
     private func write(_ view: NSView?, to url: URL) {
         guard let view else { return }
         view.layoutSubtreeIfNeeded()
-        guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        if view.bounds.isEmpty {
+            view.setFrameSize(view.fittingSize)
+            view.layoutSubtreeIfNeeded()
+        }
+        guard !view.bounds.isEmpty, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else {
+            print("Could not render \(url.lastPathComponent): view size is \(view.bounds.size)")
+            return
+        }
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: url)
         print("Wrote \(url.path)")
