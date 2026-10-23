@@ -103,7 +103,7 @@ if diskutil image help >/dev/null 2>&1; then
     rm -f "$DMG"
   fi
 else
-  note_ci "diskutil image is not available on macOS $(sw_vers -productVersion)"
+  note_ci "diskutil image not detected on macOS $(sw_vers -productVersion). 'diskutil image': $(diskutil image 2>&1 | head -n 25) /// 'diskutil' verbs: $(diskutil 2>&1 | grep -iE 'image|^ +[a-z]' | head -n 60 | tr -s ' ' | tr '\n' ',')"
 fi
 if [[ -z "$DMG_TOOL" ]]; then
   for attempt in 1 2 3; do
