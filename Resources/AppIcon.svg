@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE07A"/>
+      <stop offset="0.55" stop-color="#FFC23D"/>
+      <stop offset="1" stop-color="#FF9F1C"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#262A3F"/>
+      <stop offset="1" stop-color="#171A2B"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#5A2E00" flood-opacity="0.35"/>
+    </filter>
+    <filter id="iconShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <clipPath id="squircle">
+      <rect x="100" y="100" width="824" height="824" rx="185"/>
+    </clipPath>
+  </defs>
+
+  <!-- Base tile (macOS icon grid: 824pt tile centred on a 1024pt canvas). -->
+  <g filter="url(#iconShadow)">
+    <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  </g>
+  <g clip-path="url(#squircle)">
+    <!-- Faint ruled lines: a nod to a notes page. -->
+    <g stroke="#B86A00" stroke-opacity="0.16" stroke-width="6">
+      <line x1="100" y1="250" x2="924" y2="250"/>
+      <line x1="100" y1="330" x2="924" y2="330"/>
+      <line x1="100" y1="410" x2="924" y2="410"/>
+      <line x1="100" y1="490" x2="924" y2="490"/>
+      <line x1="100" y1="570" x2="924" y2="570"/>
+      <line x1="100" y1="650" x2="924" y2="650"/>
+      <line x1="100" y1="730" x2="924" y2="730"/>
+      <line x1="100" y1="810" x2="924" y2="810"/>
+    </g>
+    <rect x="100" y="100" width="824" height="300" fill="url(#sheen)" opacity="0.5"/>
+  </g>
+
+  <!-- Code card -->
+  <g transform="rotate(-6 512 540)" filter="url(#shadow)">
+    <rect x="212" y="262" width="600" height="556" rx="64" fill="url(#card)"/>
+    <!-- window dots -->
+    <circle cx="276" cy="324" r="16" fill="#FF5F57"/>
+    <circle cx="326" cy="324" r="16" fill="#FEBC2E"/>
+    <circle cx="376" cy="324" r="16" fill="#28C840"/>
+
+    <!-- highlighted line, like an editor's current-line marker -->
+    <rect x="252" y="514" width="470" height="62" rx="20" fill="#FFFFFF" opacity="0.09"/>
+    <rect x="252" y="514" width="12" height="62" rx="6" fill="#FFC23D"/>
+
+    <!-- syntax-coloured code lines -->
+    <g stroke-linecap="round" stroke-width="30">
+      <line x1="272" y1="406" x2="362" y2="406" stroke="#FF5FA2"/>
+      <line x1="402" y1="406" x2="560" y2="406" stroke="#5DB0FF"/>
+      <line x1="600" y1="406" x2="640" y2="406" stroke="#C9CDE0"/>
+
+      <line x1="332" y1="476" x2="420" y2="476" stroke="#B888FF"/>
+      <line x1="460" y1="476" x2="650" y2="476" stroke="#C9CDE0"/>
+
+      <line x1="332" y1="545" x2="440" y2="545" stroke="#FF5FA2"/>
+      <line x1="480" y1="545" x2="690" y2="545" stroke="#5FD38D"/>
+
+      <line x1="392" y1="614" x2="520" y2="614" stroke="#FFB454"/>
+      <line x1="560" y1="614" x2="620" y2="614" stroke="#C9CDE0"/>
+
+      <line x1="332" y1="683" x2="560" y2="683" stroke="#7F8699"/>
+
+      <line x1="272" y1="752" x2="312" y2="752" stroke="#C9CDE0"/>
+    </g>
+  </g>
+
+  <!-- </> badge -->
+  <g transform="translate(700 700)">
+    <circle r="132" fill="#FFFFFF" filter="url(#shadow)"/>
+    <g fill="none" stroke="#1C1F33" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="-38,-48 -82,0 -38,48"/>
+      <polyline points="38,-48 82,0 38,48"/>
+      <line x1="16" y1="-62" x2="-16" y2="62" stroke="#FF8A00"/>
+    </g>
+  </g>
+</svg>
