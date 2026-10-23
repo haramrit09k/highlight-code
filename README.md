@@ -72,11 +72,27 @@ You can always build it yourself from source instead (see [Development](#develop
 Open the app from Applications at any time to change the theme or font size, or to turn
 the floating button on or off.
 
+### Colours in Notes need Accessibility access
+
+Notes drops the colours (and font) of pasted rich text, unless it's pasted with
+**Edit › Paste and Retain Style**, which has no keyboard shortcut. (Plain Paste keeps
+only bold and italic; Paste and Match Style, <kbd>⌥⇧⌘V</kbd>, keeps nothing.) With **Accessibility** access
+(System Settings › Privacy & Security › Accessibility, or **Grant Access…** in the app),
+Highlight Code does that for you, from both the floating button and the Services menu.
+
+If the app still asks for access although it's switched on, the entry belongs to a
+previous build (unsigned builds get a new identity each time). Remove **Highlight Code**
+from the Accessibility list with **–** and grant access again, or run
+`tccutil reset Accessibility io.github.haramrit09k.highlight-code` and reopen the app.
+
+Without it, choose **Services › Copy Highlighted Code**, then **Edit › Paste and
+Retain Style** in your note. Other apps (TextEdit, Pages, Mail…) keep the colours either way.
+
 ### The floating button
 
 Turn it on in the app's settings window. It needs the **Accessibility** permission, the
 same one screen readers and window managers use, so it can see what you select in Notes
-and paste the highlighted version through Notes' own **Edit › Paste**. Your clipboard is
+and paste the highlighted version through Notes' own **Edit › Paste and Retain Style**. Your clipboard is
 restored afterwards. Turn on **Open at login** to keep the button available after a
 restart.
 
@@ -101,6 +117,11 @@ fn main() { println!("hi"); }
 ````
 
 Aliases such as `js`, `ts`, `py`, `sh`, `yml` and `objc` work.
+
+### Something not working in Notes?
+
+Highlight Code writes a short log (what it pressed and pasted, never your code) to
+`~/Library/Logs/HighlightCode.log`. Please attach it when reporting a problem.
 
 ### Not showing up in the Services menu?
 

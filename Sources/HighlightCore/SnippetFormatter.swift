@@ -16,9 +16,10 @@ public final class SnippetFormatter {
 
     public func format(_ text: String, options: RenderOptions) -> Output {
         let snippet = CodeSnippet.parse(text)
-        let result = highlighter.highlight(snippet.code, language: snippet.language)
+        let result = highlighter.highlight(SmartQuotes.straightened(snippet.code), language: snippet.language)
+        let runs = SmartQuotes.restore(result.runs, from: snippet.code)
         return Output(
-            attributed: CodeRenderer.attributedString(for: result.runs, options: options),
+            attributed: CodeRenderer.attributedString(for: runs, options: options),
             language: result.language
         )
     }

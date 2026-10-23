@@ -11,10 +11,16 @@ on:
         required: false
         default: ""
 
+# A new push to a branch cancels that branch's runs still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   macos:
     name: Build & test (macOS)
     runs-on: macos-15
+    timeout-minutes: 40
     permissions:
       contents: write
     steps:
@@ -51,9 +57,37 @@ jobs:
             build/smoke/
           if-no-files-found: ignore
 
+  # The same checks on the other macOS versions and chips GitHub offers (macOS 13, the
+  # oldest version the app supports, no longer has hosted runners).
+  compatibility:
+    name: Compatibility (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        # Intel is covered by macos-15-intel. macos-26-intel is left out: its jobs hung
+        # for hours (rendering the snapshots) and blocked the queue.
+        runner: [macos-14, macos-15-intel, macos-26]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: System
+        run: sw_vers && uname -m && swift --version
+
+      - name: Unit tests
+        run: scripts/ci-run.sh swift test
+
+      - name: Build app
+        run: scripts/ci-run.sh scripts/build-app.sh "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Smoke test (CLI, Services menu)
+        run: scripts/ci-run.sh scripts/smoke-test.sh --install --no-snapshots
+
   linux-core:
     name: Core tests (Linux)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container: swift:6.0
     steps:
       - uses: actions/checkout@v5

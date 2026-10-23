@@ -6,10 +6,10 @@ import HighlightCore
 /// Shows a small floating "Highlight" button next to the text selected in Apple Notes.
 ///
 /// Notes itself is not modified: like screen readers and tools such as Pronotes, this uses
-/// the Accessibility API to follow the selection, and pastes the result through Notes'
-/// own Edit › Paste menu item. It needs the Accessibility permission.
+/// the Accessibility API to follow the selection, and pastes the result with Notes' own
+/// Edit › Paste and Retain Style (see NotesPaster). It needs the Accessibility permission.
 final class SelectionToolbar: NSObject {
-    static let notesBundleID = "com.apple.Notes"
+    static let notesBundleID = NotesPaster.notesBundleID
     /// The button appears once the selection stops changing for this long (e.g. drag ended).
     private static let settleDelay: TimeInterval = 0.25
     private static let panelSize = CGSize(width: 150, height: 34)
@@ -20,6 +20,9 @@ final class SelectionToolbar: NSObject {
     private var observedPID: pid_t?
     private var workspaceObserver: NSObjectProtocol?
     private var pendingUpdate: DispatchWorkItem?
+    private var eventMonitor: Any?
+    /// The selection the button is currently shown for.
+    private var shownRange: (location: Int, length: Int)?
     private lazy var panel = makePanel()
 
     /// - Parameter write: formats the given text and writes it to the pasteboard.
@@ -44,12 +47,20 @@ final class SelectionToolbar: NSObject {
         ) { [weak self] notification in
             self?.frontmostApplicationChanged(notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)
         }
+        // Notes doesn't always report the end of a drag or a Shift-arrow selection, so also
+        // look again whenever the mouse button or a key is released while Notes is in front.
+        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .keyUp]) { [weak self] _ in
+            guard let self, self.observedPID != nil else { return }
+            self.selectionChanged()
+        }
         frontmostApplicationChanged(NSWorkspace.shared.frontmostApplication)
     }
 
     func stop() {
         if let workspaceObserver { NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver) }
         workspaceObserver = nil
+        if let eventMonitor { NSEvent.removeMonitor(eventMonitor) }
+        eventMonitor = nil
         detach()
         hidePanel()
     }
@@ -100,6 +111,12 @@ final class SelectionToolbar: NSObject {
     }
 
     private func selectionChanged() {
+        // Notes also reports "selection changed" when the selection stays the same (focus
+        // moves, redraws, autosave); leave the button where it is then, or it flickers.
+        if let shownRange, let element = focusedTextElement(), let range = selectedRange(of: element),
+           range.location == shownRange.location, range.length == shownRange.length {
+            return
+        }
         hidePanel()
         pendingUpdate?.cancel()
         let update = DispatchWorkItem { [weak self] in self?.showPanelForCurrentSelection() }
@@ -108,11 +125,14 @@ final class SelectionToolbar: NSObject {
     }
 
     private func showPanelForCurrentSelection() {
-        guard let element = focusedTextElement(),
-              let range = selectedRange(of: element), range.length > 0,
+        guard let element = focusedTextElement() else {
+            DebugLog.write("button: not shown, Notes has no focused text element")
+            return
+        }
+        guard let range = selectedRange(of: element), range.length > 0,
               let text = selectedText(of: element), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let bounds = bounds(of: range, in: element),
               let primary = NSScreen.screens.first else { return }
+        let bounds = anchorRect(for: range, in: element, primaryScreenHeight: primary.frame.height)
 
         let flipped = CGPoint(x: bounds.midX, y: primary.frame.height - bounds.midY)
         let screen = NSScreen.screens.first { $0.frame.contains(flipped) } ?? primary
@@ -124,67 +144,29 @@ final class SelectionToolbar: NSObject {
         )
         panel.setFrame(frame, display: true)
         panel.orderFrontRegardless()
+        shownRange = (range.location, range.length)
     }
 
     private func hidePanel() {
         panel.orderOut(nil)
+        shownRange = nil
     }
 
     // MARK: Highlighting
 
     @objc private func highlightClicked() {
         hidePanel()
-        guard let element = focusedTextElement(), let text = selectedText(of: element), !text.isEmpty else {
+        guard let pid = observedPID, let element = focusedTextElement(),
+              let text = selectedText(of: element), !text.isEmpty else {
             NSSound.beep()
             return
         }
-
-        let pasteboard = NSPasteboard.general
-        let saved = PasteboardSnapshot(pasteboard)
         do {
-            try write(text, pasteboard)
+            DebugLog.write("floating button: highlighting \(text.count) characters")
+            try NotesPaster.paste(into: pid, replacing: text) { pasteboard in try write(text, pasteboard) }
         } catch {
             NSSound.beep()
-            return
         }
-        let ourChange = pasteboard.changeCount
-        paste()
-
-        // Put the user's clipboard back once Notes has read ours.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            if pasteboard.changeCount == ourChange { saved.restore(to: pasteboard) }
-        }
-    }
-
-    /// Presses Notes' Edit › Paste (found by its ⌘V shortcut, so it works in any language),
-    /// falling back to a ⌘V keystroke.
-    private func paste() {
-        if let notesElement, let item = pasteMenuItem(in: notesElement),
-           AXUIElementPerformAction(item, kAXPressAction as CFString) == .success {
-            return
-        }
-        let source = CGEventSource(stateID: .combinedSessionState)
-        let keyV: CGKeyCode = 9
-        for keyDown in [true, false] {
-            let event = CGEvent(keyboardEventSource: source, virtualKey: keyV, keyDown: keyDown)
-            event?.flags = .maskCommand
-            event?.post(tap: .cghidEventTap)
-        }
-    }
-
-    private func pasteMenuItem(in application: AXUIElement) -> AXUIElement? {
-        guard let menuBar: AXUIElement = attribute(kAXMenuBarAttribute, of: application) else { return nil }
-        for menuBarItem in children(of: menuBar) {
-            for menu in children(of: menuBarItem) {
-                for item in children(of: menu) {
-                    let character: String? = attribute(kAXMenuItemCmdCharAttribute, of: item)
-                    let modifiers: NSNumber? = attribute(kAXMenuItemCmdModifiersAttribute, of: item)
-                    // A modifiers value of 0 means "⌘ only".
-                    if character?.uppercased() == "V", modifiers?.intValue == 0 { return item }
-                }
-            }
-        }
-        return nil
     }
 
     // MARK: Accessibility helpers
@@ -204,6 +186,28 @@ final class SelectionToolbar: NSObject {
         return AXValueGetValue(value, .cfRange, &range) ? range : nil
     }
 
+    /// Where the selection is on screen (Accessibility coordinates). Notes can't always give
+    /// bounds for a long, multi-line selection, so fall back to its first and last characters,
+    /// and finally to the mouse pointer, which is where a drag ends.
+    private func anchorRect(for range: CFRange, in element: AXUIElement, primaryScreenHeight: CGFloat) -> CGRect {
+        if let rect = bounds(of: range, in: element), rect.height > 0 {
+            return rect
+        }
+        let first = bounds(of: CFRange(location: range.location, length: 1), in: element)
+        let last = bounds(of: CFRange(location: range.location + range.length - 1, length: 1), in: element)
+        switch (first, last) {
+        case let (first?, last?):
+            DebugLog.write("button: no bounds for \(range.length) characters, using first and last")
+            return first.union(last)
+        case let (rect?, nil), let (nil, rect?):
+            return rect
+        case (nil, nil):
+            DebugLog.write("button: no bounds for the selection, using the mouse position")
+            let mouse = NSEvent.mouseLocation
+            return CGRect(x: mouse.x, y: primaryScreenHeight - mouse.y - 20, width: 1, height: 20)
+        }
+    }
+
     private func bounds(of range: CFRange, in element: AXUIElement) -> CGRect? {
         var range = range
         guard let rangeValue = AXValueCreate(.cfRange, &range) else { return nil }
@@ -216,16 +220,8 @@ final class SelectionToolbar: NSObject {
         return AXValueGetValue(result as! AXValue, .cgRect, &rect) && rect.width >= 0 ? rect : nil
     }
 
-    private func children(of element: AXUIElement) -> [AXUIElement] {
-        attribute(kAXChildrenAttribute, of: element) ?? []
-    }
-
     private func attribute<T>(_ name: String, of element: AXUIElement) -> T? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success, let value else { return nil }
-        if T.self == AXUIElement.self, CFGetTypeID(value) != AXUIElementGetTypeID() { return nil }
-        if T.self == AXValue.self, CFGetTypeID(value) != AXValueGetTypeID() { return nil }
-        return value as? T
+        NotesPaster.attribute(name, of: element)
     }
 
     // MARK: Panel
@@ -266,31 +262,6 @@ final class SelectionToolbar: NSObject {
 
         panel.contentView = background
         return panel
-    }
-}
-
-/// A copy of everything on a pasteboard, so it can be put back afterwards.
-private struct PasteboardSnapshot {
-    private let items: [[NSPasteboard.PasteboardType: Data]]
-
-    init(_ pasteboard: NSPasteboard) {
-        items = (pasteboard.pasteboardItems ?? []).map { item in
-            var contents: [NSPasteboard.PasteboardType: Data] = [:]
-            for type in item.types {
-                if let data = item.data(forType: type) { contents[type] = data }
-            }
-            return contents
-        }
-    }
-
-    func restore(to pasteboard: NSPasteboard) {
-        pasteboard.clearContents()
-        guard !items.isEmpty else { return }
-        pasteboard.writeObjects(items.map { contents in
-            let item = NSPasteboardItem()
-            for (type, data) in contents { item.setData(data, forType: type) }
-            return item
-        })
     }
 }
 #endif
