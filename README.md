@@ -75,7 +75,8 @@ the floating button on or off.
 ### Colours in Notes need Accessibility access
 
 Notes drops the colours (and font) of pasted rich text, unless it's pasted with
-**Edit › Paste and Retain Style** (<kbd>⌥⇧⌘V</kbd>). With **Accessibility** access
+**Edit › Paste and Retain Style**, which has no keyboard shortcut. (Plain Paste keeps
+only bold and italic; Paste and Match Style, <kbd>⌥⇧⌘V</kbd>, keeps nothing.) With **Accessibility** access
 (System Settings › Privacy & Security › Accessibility, or **Grant Access…** in the app),
 Highlight Code does that for you, from both the floating button and the Services menu.
 
@@ -84,8 +85,8 @@ previous build (unsigned builds get a new identity each time). Remove **Highligh
 from the Accessibility list with **–** and grant access again, or run
 `tccutil reset Accessibility io.github.haramrit09k.highlight-code` and reopen the app.
 
-Without it, choose **Services › Copy Highlighted Code** and press <kbd>⌥⇧⌘V</kbd> in
-your note. Other apps (TextEdit, Pages, Mail…) keep the colours either way.
+Without it, choose **Services › Copy Highlighted Code**, then **Edit › Paste and
+Retain Style** in your note. Other apps (TextEdit, Pages, Mail…) keep the colours either way.
 
 ### The floating button
 
