@@ -49,6 +49,12 @@ struct SettingsView: View {
                             Button("Grant Access…", action: requestAccessibility)
                         }
                     }
+                    if !preferences.accessibilityTrusted {
+                        Text("Already switched on in System Settings? macOS ties the permission to one exact build of the app, so after an update the old entry no longer applies. Select Highlight Code in Privacy & Security › Accessibility, remove it with –, then click Grant Access… again.")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     Toggle("Show a “Highlight Code” button when I select text in Notes", isOn: $preferences.floatingButton)
                     if preferences.floatingButton {
                         Toggle("Open at login, so the button is always available", isOn: $preferences.openAtLogin)
