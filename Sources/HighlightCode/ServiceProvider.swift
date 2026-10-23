@@ -27,11 +27,13 @@ final class ServiceProvider: NSObject {
 
     /// "Highlight Code": replaces the selected text with highlighted code.
     @objc func highlightCode(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        DebugLog.write("service: Highlight Code requested from \(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?")")
         replaceSelection(in: pasteboard, choice: .automatic, error: error)
     }
 
     /// "Highlight Code As…": asks for the language first, then replaces the selection.
     @objc func highlightCodeAs(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        DebugLog.write("service: Highlight Code As requested from \(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?")")
         onRequest()
         guard pasteboard.string(forType: .string)?.isEmpty == false else {
             error.pointee = "Select some code first." as NSString
