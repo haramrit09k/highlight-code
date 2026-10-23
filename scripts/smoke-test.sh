@@ -20,7 +20,7 @@ echo "==> Disk image"
 MOUNT="$(mktemp -d)"
 hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "$ROOT/build/HighlightCode.dmg" >/dev/null
 VOLUME_NAME="$(diskutil info "$MOUNT" 2>/dev/null | sed -n 's/^ *Volume Name: *//p')"
-[[ "$VOLUME_NAME" == "Highlight Code" ]] || echo "warning: volume name is '$VOLUME_NAME'"
+[[ "$VOLUME_NAME" == "Highlight Code" ]] || echo "::warning title=Disk image::volume name is '$VOLUME_NAME', expected 'Highlight Code'"
 test -d "$MOUNT/Highlight Code.app" || { echo "FAIL: the app is missing from the disk image"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }
 [[ "$(readlink "$MOUNT/Applications")" == /Applications ]] || { echo "FAIL: no Applications shortcut"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }
 codesign --verify --deep --strict "$MOUNT/Highlight Code.app" || { echo "FAIL: the app in the disk image fails codesign"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }

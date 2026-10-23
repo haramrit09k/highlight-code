@@ -105,6 +105,7 @@ if [[ -z "$DMG_TOOL" ]]; then
   DMG_TOOL="hdiutil"
 fi
 echo "Disk image created with $DMG_TOOL"
+[[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Disk image::created with $DMG_TOOL on macOS $(sw_vers -productVersion)"
 rm -rf "$BUILD/dmg"
 
 echo "Built $APP"
