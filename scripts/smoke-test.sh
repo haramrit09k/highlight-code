@@ -15,8 +15,12 @@ OUT="$ROOT/build/smoke"
 mkdir -p "$OUT"
 
 echo "==> Disk image"
+# Checked with hdiutil, which still works (deprecated, not removed, in macOS 27) and has
+# the read-only, no-Finder attach this needs on every macOS version the app supports.
 MOUNT="$(mktemp -d)"
 hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "$ROOT/build/HighlightCode.dmg" >/dev/null
+VOLUME_NAME="$(diskutil info "$MOUNT" 2>/dev/null | sed -n 's/^ *Volume Name: *//p')"
+[[ "$VOLUME_NAME" == "Highlight Code" ]] || echo "warning: volume name is '$VOLUME_NAME'"
 test -d "$MOUNT/Highlight Code.app" || { echo "FAIL: the app is missing from the disk image"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }
 [[ "$(readlink "$MOUNT/Applications")" == /Applications ]] || { echo "FAIL: no Applications shortcut"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }
 codesign --verify --deep --strict "$MOUNT/Highlight Code.app" || { echo "FAIL: the app in the disk image fails codesign"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }

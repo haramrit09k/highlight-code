@@ -76,19 +76,36 @@ ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
 echo "==> Creating disk image"
 # The usual drag-to-install window: the app next to a shortcut to Applications. The name
 # has no version so README links to releases/latest/download/HighlightCode.dmg keep working.
+# The staging folder is named after the volume, so either tool below names it correctly.
 DMG="$BUILD/HighlightCode.dmg"
-STAGING="$BUILD/dmg"
-rm -rf "$STAGING"
+STAGING="$BUILD/dmg/Highlight Code"
+rm -rf "$BUILD/dmg"
 mkdir -p "$STAGING"
 ditto "$APP" "$STAGING/Highlight Code.app"
 ln -s /Applications "$STAGING/Applications"
-for attempt in 1 2 3; do
-  # hdiutil occasionally fails with "Resource busy" on CI machines; try again.
-  hdiutil create -volname "Highlight Code" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null && break
-  [[ $attempt == 3 ]] && { echo "hdiutil create failed" >&2; exit 1; }
-  sleep 5
-done
-rm -rf "$STAGING"
+
+# hdiutil is deprecated as of macOS 27 in favour of `diskutil image` (macOS 26+). Use the
+# new tool where it exists, and fall back to hdiutil on older systems or if it fails.
+DMG_TOOL=""
+if diskutil image help >/dev/null 2>&1; then
+  if diskutil image create from "$STAGING" --format UDZO "$DMG" >/dev/null 2>&1 && [[ -s "$DMG" ]]; then
+    DMG_TOOL="diskutil image"
+  else
+    echo "diskutil image create failed; falling back to hdiutil"
+    rm -f "$DMG"
+  fi
+fi
+if [[ -z "$DMG_TOOL" ]]; then
+  for attempt in 1 2 3; do
+    # hdiutil occasionally fails with "Resource busy" on CI machines; try again.
+    hdiutil create -volname "Highlight Code" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null && break
+    [[ $attempt == 3 ]] && { echo "hdiutil create failed" >&2; exit 1; }
+    sleep 5
+  done
+  DMG_TOOL="hdiutil"
+fi
+echo "Disk image created with $DMG_TOOL"
+rm -rf "$BUILD/dmg"
 
 echo "Built $APP"
 echo "Built $ZIP"
