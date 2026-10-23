@@ -2,7 +2,8 @@
 # Builds "Highlight Code.app" (universal: Apple Silicon + Intel) and a zip for release.
 #
 # Usage: scripts/build-app.sh [version]      e.g. scripts/build-app.sh 1.0.0
-# Output: build/Highlight Code.app and build/HighlightCode-<version>.zip
+# Output: build/Highlight Code.app, build/HighlightCode-<version>.zip (for updates and the
+#         install script) and build/HighlightCode.dmg (for people downloading by hand)
 #
 # Optional environment:
 #   SIGN_IDENTITY            code-signing identity (see scripts/import-signing-cert.sh);
@@ -17,7 +18,7 @@ BUILD="$ROOT/build"
 APP="$BUILD/Highlight Code.app"
 
 cd "$ROOT"
-rm -rf "$APP" "$BUILD"/HighlightCode-*.zip "$BUILD/AppIcon.iconset"
+rm -rf "$APP" "$BUILD"/HighlightCode-*.zip "$BUILD/HighlightCode.dmg" "$BUILD/AppIcon.iconset"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "==> Compiling"
@@ -72,5 +73,23 @@ codesign --display --requirements - "$APP" 2>/dev/null | sed -n 's/^designated =
 echo "==> Zipping"
 ZIP="$BUILD/HighlightCode-${VERSION}.zip"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$ZIP"
+echo "==> Creating disk image"
+# The usual drag-to-install window: the app next to a shortcut to Applications. The name
+# has no version so README links to releases/latest/download/HighlightCode.dmg keep working.
+DMG="$BUILD/HighlightCode.dmg"
+STAGING="$BUILD/dmg"
+rm -rf "$STAGING"
+mkdir -p "$STAGING"
+ditto "$APP" "$STAGING/Highlight Code.app"
+ln -s /Applications "$STAGING/Applications"
+for attempt in 1 2 3; do
+  # hdiutil occasionally fails with "Resource busy" on CI machines; try again.
+  hdiutil create -volname "Highlight Code" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null && break
+  [[ $attempt == 3 ]] && { echo "hdiutil create failed" >&2; exit 1; }
+  sleep 5
+done
+rm -rf "$STAGING"
+
 echo "Built $APP"
 echo "Built $ZIP"
+echo "Built $DMG"

@@ -14,6 +14,15 @@ BIN="$APP/Contents/MacOS/HighlightCode"
 OUT="$ROOT/build/smoke"
 mkdir -p "$OUT"
 
+echo "==> Disk image"
+MOUNT="$(mktemp -d)"
+hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT" "$ROOT/build/HighlightCode.dmg" >/dev/null
+test -d "$MOUNT/Highlight Code.app" || { echo "FAIL: the app is missing from the disk image"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }
+[[ "$(readlink "$MOUNT/Applications")" == /Applications ]] || { echo "FAIL: no Applications shortcut"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }
+codesign --verify --deep --strict "$MOUNT/Highlight Code.app" || { echo "FAIL: the app in the disk image fails codesign"; hdiutil detach "$MOUNT" >/dev/null; exit 1; }
+hdiutil detach "$MOUNT" >/dev/null
+echo "PASS"
+
 echo "==> Command-line mode"
 printf 'import os\n\ndef main():\n    print(os.getcwd())  # where am I\n' | "$BIN" --rtf > "$OUT/sample.rtf"
 head -c 6 "$OUT/sample.rtf" | grep -q '{\\rtf1' || { echo "FAIL: output is not RTF"; exit 1; }

@@ -9,6 +9,14 @@
   Select code → click <b>Highlight Code</b> → done.
 </p>
 
+<p align="center">
+  <a href="https://github.com/haramrit09k/highlight-code/releases/latest/download/HighlightCode.dmg"><b>⬇ Download for Mac</b></a>
+  &nbsp;·&nbsp; macOS 13 or later, Apple Silicon &amp; Intel &nbsp;·&nbsp;
+  <a href="#install">Install help</a>
+  <br><br>
+  <a href="https://github.com/haramrit09k/highlight-code/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/haramrit09k/highlight-code?label=latest"></a>
+</p>
+
 ---
 
 Apple Notes is great for study notes, but code in it is plain text: even the built-in
@@ -26,22 +34,27 @@ tiny open-source Mac app that adds syntax highlighting to Notes, without modifyi
   backgrounds. Two higher-contrast themes are included as well.
 - **Syncs everywhere**: the result is ordinary rich text in Menlo, so it looks the same on
   your iPhone and iPad.
-- **Private and light**: everything runs locally, with no network access. Without
-  the floating button, the app quits itself when idle.
+- **Private and light**: highlighting runs entirely on your Mac, and your code never
+  leaves it; the only network use is a daily check for updates. Without the floating
+  button, the app quits itself when idle.
 
 It works in other apps with rich text too (TextEdit, Pages, Mail, Keynote…).
 
 ## Install
 
-**One line** (Terminal):
+1. **[Download HighlightCode.dmg](https://github.com/haramrit09k/highlight-code/releases/latest/download/HighlightCode.dmg)**
+   and open it.
+2. Drag **Highlight Code** onto the **Applications** folder in the window that opens.
+3. Open it from Applications. The first time, macOS asks you to confirm (see below).
+
+**Or in one line** (Terminal), which also skips the confirmation:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/haramrit09k/highlight-code/main/install.sh | bash
 ```
 
-**Or manually:** download the latest `HighlightCode-x.y.z.zip` from
-[Releases](https://github.com/haramrit09k/highlight-code/releases), unzip it and drag
-**Highlight Code** into **Applications**, then open it once (see below).
+Every release also has a `.zip` on the [Releases](https://github.com/haramrit09k/highlight-code/releases)
+page. After installing, the app keeps itself up to date.
 
 Requires macOS 13 Ventura or later, on Apple Silicon or Intel.
 
