@@ -99,6 +99,19 @@ final class CodeHighlighterTests: XCTestCase {
         XCTAssertNil(plain.attributed.attribute(.foregroundColor, at: 0, effectiveRange: nil))
     }
 
+    func testSmartQuotedStringsAreHighlightedAndKept() throws {
+        // As typed into Notes, with smart quotes and tabs.
+        let code = "const pizzaOrder = new Promise((resolve, reject) => {\n\tlet isPizzaReady = true;\n\tif(isPizzaReady) {\n\t\tresolve(\u{201C}Fresh pepperoni pizza!\u{201D}); //success\n\t}\n});"
+        let output = SnippetFormatter(highlighter: highlighter).format(code, options: RenderOptions())
+        XCTAssertEqual(output.attributed.string, code)
+        XCTAssertEqual(output.language, "javascript")
+
+        let quote = (code as NSString).range(of: "\u{201C}Fresh")
+        let color = try XCTUnwrap(output.attributed.attribute(.foregroundColor, at: quote.location, effectiveRange: nil) as? NSColor)
+        let expected = try XCTUnwrap(Theme.balanced.style(for: .string)?.color)
+        XCTAssertEqual(Int((color.greenComponent * 255).rounded()), Int(expected.green))
+    }
+
     func testPasteboardGetsRTFAndPlainText() throws {
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("HighlightCodeTests-\(UUID().uuidString)"))
         defer { pasteboard.releaseGlobally() }

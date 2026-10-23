@@ -18,9 +18,10 @@ public final class SnippetFormatter {
     ///   `nil` uses the fence's language, or auto-detects.
     public func format(_ text: String, language: String? = nil, options: RenderOptions) -> Output {
         let snippet = CodeSnippet.parse(text)
-        let result = highlighter.highlight(snippet.code, language: language ?? snippet.language)
+        let result = highlighter.highlight(SmartQuotes.straightened(snippet.code), language: language ?? snippet.language)
+        let runs = SmartQuotes.restore(result.runs, from: snippet.code)
         return Output(
-            attributed: CodeRenderer.attributedString(for: result.runs, options: options),
+            attributed: CodeRenderer.attributedString(for: runs, options: options),
             language: result.language
         )
     }

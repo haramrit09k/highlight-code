@@ -100,3 +100,30 @@ final class ThemeTests: XCTestCase {
         XCTAssertEqual(Theme.named("classic-dark"), .classicDark)
     }
 }
+
+final class SmartQuotesTests: XCTestCase {
+    func testStraightensCurlyQuotes() {
+        XCTAssertEqual(SmartQuotes.straightened("resolve(\u{201C}Fresh!\u{201D}); it\u{2019}s"), "resolve(\"Fresh!\"); it's")
+    }
+
+    func testRestoreKeepsOriginalCharactersAndScopes() {
+        let original = "x = \u{201C}hi\u{201D} // \u{2018}ok\u{2019}"
+        let runs = [
+            TokenRun(text: "x = "),
+            TokenRun(text: "\"hi\"", scopes: ["string"]),
+            TokenRun(text: " "),
+            TokenRun(text: "// 'ok'", scopes: ["comment"]),
+        ]
+        XCTAssertEqual(SmartQuotes.restore(runs, from: original), [
+            TokenRun(text: "x = "),
+            TokenRun(text: "\u{201C}hi\u{201D}", scopes: ["string"]),
+            TokenRun(text: " "),
+            TokenRun(text: "// \u{2018}ok\u{2019}", scopes: ["comment"]),
+        ])
+    }
+
+    func testRestoreLeavesMismatchedRunsAlone() {
+        let runs = [TokenRun(text: "abc")]
+        XCTAssertEqual(SmartQuotes.restore(runs, from: "abcd"), runs)
+    }
+}
