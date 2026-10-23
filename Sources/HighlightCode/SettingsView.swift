@@ -101,6 +101,9 @@ struct SettingsView: View {
         }
         .padding(24)
         .frame(width: 720)
+        // Normally the window paints this; drawing it here keeps off-screen snapshots
+        // (which start from white) correct in dark mode.
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var header: some View {
