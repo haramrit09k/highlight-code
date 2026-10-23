@@ -92,18 +92,18 @@ ln -s /Applications "$STAGING/Applications"
 # hdiutil is deprecated as of macOS 27 in favour of `diskutil image` (macOS 26+). Use the
 # new tool where it exists, and fall back to hdiutil on older systems or if it fails.
 DMG_TOOL=""
-if diskutil image help >/dev/null 2>&1; then
+if diskutil image --help 2>&1 | grep -q 'SUBCOMMANDS'; then
   if DISKUTIL_OUTPUT="$(diskutil image create from "$STAGING" --format UDZO "$DMG" 2>&1)" && [[ -s "$DMG" ]]; then
     DMG_TOOL="diskutil image"
   else
     echo "diskutil image create failed; falling back to hdiutil:"
     echo "$DISKUTIL_OUTPUT"
     note_ci "diskutil image create failed: $(printf '%s' "$DISKUTIL_OUTPUT" | tail -n 5)"
-    note_ci "diskutil image create help: $(diskutil image create help 2>&1 | head -n 40)"
+    note_ci "diskutil image create usage: $(diskutil image create 2>&1 | head -n 60)"
     rm -f "$DMG"
   fi
 else
-  note_ci "diskutil image not detected on macOS $(sw_vers -productVersion). 'diskutil image': $(diskutil image 2>&1 | head -n 25) /// 'diskutil' verbs: $(diskutil 2>&1 | grep -iE 'image|^ +[a-z]' | head -n 60 | tr -s ' ' | tr '\n' ',')"
+  note_ci "diskutil image is not available on macOS $(sw_vers -productVersion)"
 fi
 if [[ -z "$DMG_TOOL" ]]; then
   for attempt in 1 2 3; do
