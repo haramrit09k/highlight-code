@@ -79,6 +79,11 @@ Notes drops the colours (and font) of pasted rich text, unless it's pasted with
 (System Settings › Privacy & Security › Accessibility, or **Grant Access…** in the app),
 Highlight Code does that for you, from both the floating button and the Services menu.
 
+If the app still asks for access although it's switched on, the entry belongs to a
+previous build (unsigned builds get a new identity each time). Remove **Highlight Code**
+from the Accessibility list with **–** and grant access again, or run
+`tccutil reset Accessibility io.github.haramrit09k.highlight-code` and reopen the app.
+
 Without it, choose **Services › Copy Highlighted Code** and press <kbd>⌥⇧⌘V</kbd> in
 your note. Other apps (TextEdit, Pages, Mail…) keep the colours either way.
 

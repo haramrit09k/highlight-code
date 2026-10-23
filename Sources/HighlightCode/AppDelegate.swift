@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var handledRequest = false
     private var idleTimer: Timer?
     private var trustTimer: Timer?
+    private var trustRefreshTimer: Timer?
     private var explainedNotesAccessibility = false
     private var subscriptions: Set<AnyCancellable> = []
     private lazy var toolbar = SelectionToolbar(
@@ -103,6 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func windowWillClose(_ notification: Notification) {
+        trustRefreshTimer?.invalidate()
         noteActivity()
     }
 
@@ -121,6 +123,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         settingsWindow?.center()
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        refreshTrustWhileSettingsAreOpen()
+    }
+
+    /// Access can be granted or revoked in System Settings at any time, and macOS sends no
+    /// notification, so keep the status in the settings window current while it is open.
+    private func refreshTrustWhileSettingsAreOpen() {
+        trustRefreshTimer?.invalidate()
+        trustRefreshTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let trusted = SelectionToolbar.isTrusted
+            guard trusted != self.preferences.accessibilityTrusted else { return }
+            self.preferences.accessibilityTrusted = trusted
+            if trusted, self.preferences.floatingButton { self.toolbar.start() }
+        }
     }
 
     private func previewText(_ options: RenderOptions) -> NSAttributedString? {
