@@ -47,6 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         NSApp.setActivationPolicy(.accessory)
+        DebugLog.write("launched \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "?") from \(Bundle.main.bundlePath)")
+        quitOtherCopies()
         let provider = ServiceProvider(
             preferences: preferences,
             formatter: formatter,
@@ -75,6 +77,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.welcomeDelay) { [weak self] in
             guard let self, !self.handledRequest else { return }
             self.showSettings()
+        }
+    }
+
+    /// Two copies (say, an old download and the one in Applications) would each show a
+    /// floating button and answer Services at random, so only the newest launch keeps running.
+    private func quitOtherCopies() {
+        guard let id = Bundle.main.bundleIdentifier else { return }
+        for other in NSRunningApplication.runningApplications(withBundleIdentifier: id) where other != NSRunningApplication.current {
+            DebugLog.write("quitting another running copy at \(other.bundleURL?.path ?? "?")")
+            other.terminate()
         }
     }
 

@@ -24,6 +24,7 @@ final class ServiceProvider: NSObject {
 
     /// "Highlight Code": replaces the selected text with highlighted code.
     @objc func highlightCode(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        DebugLog.write("service: Highlight Code requested from \(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?")")
         if let notes = NSWorkspace.shared.frontmostApplication, notes.bundleIdentifier == NotesPaster.notesBundleID {
             guard SelectionToolbar.isTrusted else {
                 DebugLog.write("service: Notes without Accessibility access, normal reply")
