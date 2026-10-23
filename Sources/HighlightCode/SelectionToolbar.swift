@@ -21,6 +21,7 @@ final class SelectionToolbar: NSObject {
     private var observedPID: pid_t?
     private var workspaceObserver: NSObjectProtocol?
     private var pendingUpdate: DispatchWorkItem?
+    private var eventMonitor: Any?
     /// The selection the button is currently shown for.
     private var shownRange: (location: Int, length: Int)?
     private lazy var toolbarView = ToolbarView(
@@ -61,12 +62,20 @@ final class SelectionToolbar: NSObject {
         ) { [weak self] notification in
             self?.frontmostApplicationChanged(notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)
         }
+        // Notes doesn't always report the end of a drag or a Shift-arrow selection, so also
+        // look again whenever the mouse button or a key is released while Notes is in front.
+        eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseUp, .keyUp]) { [weak self] _ in
+            guard let self, self.observedPID != nil else { return }
+            self.selectionChanged()
+        }
         frontmostApplicationChanged(NSWorkspace.shared.frontmostApplication)
     }
 
     func stop() {
         if let workspaceObserver { NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver) }
         workspaceObserver = nil
+        if let eventMonitor { NSEvent.removeMonitor(eventMonitor) }
+        eventMonitor = nil
         detach()
         hidePanel()
     }
@@ -133,11 +142,14 @@ final class SelectionToolbar: NSObject {
     }
 
     private func showPanelForCurrentSelection() {
-        guard let element = focusedTextElement(),
-              let range = selectedRange(of: element), range.length > 0,
+        guard let element = focusedTextElement() else {
+            DebugLog.write("button: not shown, Notes has no focused text element")
+            return
+        }
+        guard let range = selectedRange(of: element), range.length > 0,
               let text = selectedText(of: element), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let bounds = bounds(of: range, in: element),
               let primary = NSScreen.screens.first else { return }
+        let bounds = anchorRect(for: range, in: element, primaryScreenHeight: primary.frame.height)
 
         let flipped = CGPoint(x: bounds.midX, y: primary.frame.height - bounds.midY)
         let screen = NSScreen.screens.first { $0.frame.contains(flipped) } ?? primary
@@ -213,6 +225,28 @@ final class SelectionToolbar: NSObject {
         guard let value: AXValue = attribute(kAXSelectedTextRangeAttribute, of: element) else { return nil }
         var range = CFRange()
         return AXValueGetValue(value, .cfRange, &range) ? range : nil
+    }
+
+    /// Where the selection is on screen (Accessibility coordinates). Notes can't always give
+    /// bounds for a long, multi-line selection, so fall back to its first and last characters,
+    /// and finally to the mouse pointer, which is where a drag ends.
+    private func anchorRect(for range: CFRange, in element: AXUIElement, primaryScreenHeight: CGFloat) -> CGRect {
+        if let rect = bounds(of: range, in: element), rect.height > 0 {
+            return rect
+        }
+        let first = bounds(of: CFRange(location: range.location, length: 1), in: element)
+        let last = bounds(of: CFRange(location: range.location + range.length - 1, length: 1), in: element)
+        switch (first, last) {
+        case let (first?, last?):
+            DebugLog.write("button: no bounds for \(range.length) characters, using first and last")
+            return first.union(last)
+        case let (rect?, nil), let (nil, rect?):
+            return rect
+        case (nil, nil):
+            DebugLog.write("button: no bounds for the selection, using the mouse position")
+            let mouse = NSEvent.mouseLocation
+            return CGRect(x: mouse.x, y: primaryScreenHeight - mouse.y - 20, width: 1, height: 20)
+        }
     }
 
     private func bounds(of range: CFRange, in element: AXUIElement) -> CGRect? {
