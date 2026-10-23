@@ -79,6 +79,11 @@ echo "==> Creating disk image"
 # The staging folder is named after the volume, so either tool below names it correctly.
 DMG="$BUILD/HighlightCode.dmg"
 STAGING="$BUILD/dmg/Highlight Code"
+# Shows a line in the GitHub Actions summary (multi-line text becomes one annotation).
+note_ci() {
+  [[ -n "${GITHUB_ACTIONS:-}" ]] || return 0
+  echo "::notice title=Disk image::$(printf '%s' "$1" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
+}
 rm -rf "$BUILD/dmg"
 mkdir -p "$STAGING"
 ditto "$APP" "$STAGING/Highlight Code.app"
@@ -88,12 +93,17 @@ ln -s /Applications "$STAGING/Applications"
 # new tool where it exists, and fall back to hdiutil on older systems or if it fails.
 DMG_TOOL=""
 if diskutil image help >/dev/null 2>&1; then
-  if diskutil image create from "$STAGING" --format UDZO "$DMG" >/dev/null 2>&1 && [[ -s "$DMG" ]]; then
+  if DISKUTIL_OUTPUT="$(diskutil image create from "$STAGING" --format UDZO "$DMG" 2>&1)" && [[ -s "$DMG" ]]; then
     DMG_TOOL="diskutil image"
   else
-    echo "diskutil image create failed; falling back to hdiutil"
+    echo "diskutil image create failed; falling back to hdiutil:"
+    echo "$DISKUTIL_OUTPUT"
+    note_ci "diskutil image create failed: $(printf '%s' "$DISKUTIL_OUTPUT" | tail -n 5)"
+    note_ci "diskutil image create help: $(diskutil image create help 2>&1 | head -n 40)"
     rm -f "$DMG"
   fi
+else
+  note_ci "diskutil image is not available on macOS $(sw_vers -productVersion)"
 fi
 if [[ -z "$DMG_TOOL" ]]; then
   for attempt in 1 2 3; do
@@ -105,7 +115,7 @@ if [[ -z "$DMG_TOOL" ]]; then
   DMG_TOOL="hdiutil"
 fi
 echo "Disk image created with $DMG_TOOL"
-[[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Disk image::created with $DMG_TOOL on macOS $(sw_vers -productVersion)"
+note_ci "created with $DMG_TOOL on macOS $(sw_vers -productVersion)"
 rm -rf "$BUILD/dmg"
 
 echo "Built $APP"
