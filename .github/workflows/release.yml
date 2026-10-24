@@ -1,10 +1,19 @@
 name: Release
 
-# Push a tag like v1.0.0 to build the app and publish it as a GitHub Release, together
-# with the appcast.xml that installed copies check for updates.
+# Builds the app and publishes it as a GitHub Release, together with the appcast.xml that
+# installed copies check for updates. Start it any of three ways:
+#   - push a tag such as v1.0.0;
+#   - publish a release in GitHub's web UI with a new tag (the assets are added to it);
+#   - Actions › Release › Run workflow, entering a version (works from a phone): it tags
+#     the chosen branch itself.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.2.1 (creates the tag v0.2.1 on the chosen branch)"
+        required: true
 
 permissions:
   contents: write
@@ -19,11 +28,25 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
       MACOS_SIGNING_P12: ${{ secrets.MACOS_SIGNING_P12 }}
       MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
       SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Check the version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not a version like v1.2.3."
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]] && gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::$TAG has already been released; pick a new version."
+            exit 1
+          fi
 
       - name: Check signing secrets
         run: |
@@ -39,14 +62,14 @@ jobs:
         run: scripts/ci-run.sh swift test
 
       - name: Build app
-        run: scripts/ci-run.sh scripts/build-app.sh "${GITHUB_REF_NAME#v}"
+        run: scripts/ci-run.sh scripts/build-app.sh "${TAG#v}"
 
       - name: Smoke test
         run: scripts/ci-run.sh scripts/smoke-test.sh
 
       - name: Update feed
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${TAG#v}"
           scripts/make-appcast.sh "$VERSION" "build/HighlightCode-$VERSION.zip" > build/appcast.xml
           cat build/appcast.xml
 
@@ -54,6 +77,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/HighlightCode.dmg build/HighlightCode-*.zip build/appcast.xml \
-            --title "Highlight Code ${GITHUB_REF_NAME}" \
-            --generate-notes
+          ASSETS=(build/HighlightCode.dmg build/HighlightCode-*.zip build/appcast.xml)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Published in the web UI first: add the build to it.
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+          else
+            # --target creates the tag on this commit when it doesn't exist yet (Run workflow).
+            gh release create "$TAG" "${ASSETS[@]}" --target "$GITHUB_SHA" \
+              --title "Highlight Code $TAG" --generate-notes
+          fi
