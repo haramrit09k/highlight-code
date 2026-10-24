@@ -201,8 +201,11 @@ Other scripts:
 - The icon source is `Resources/AppIcon.svg`. After editing it, re-export
   `Resources/AppIcon.png` at 1024×1024.
 
-**Releasing:** push a tag such as `v1.0.0`. The Release workflow builds, tests, signs
-and publishes the zip, plus the `appcast.xml` update feed, to GitHub Releases.
+**Releasing:** push a tag such as `v1.0.0`, or, from anywhere (a phone works), open
+**Actions › Release › Run workflow** and enter the version. The Release workflow builds,
+tests and signs the app, then publishes the DMG, the zip and the `appcast.xml` update feed
+to GitHub Releases. Publishing a release with a new tag in GitHub's web UI works too: the
+workflow adds the files to it.
 
 Before the first release, run `scripts/setup-signing.sh` once on your Mac. It creates the
 two keys releases are signed with and stores them as GitHub Actions secrets (it needs
